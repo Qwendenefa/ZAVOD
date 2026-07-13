@@ -14,7 +14,7 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(express.static(path.join(__dirname, '/frontend')));
 
 // Секрет для JWT (в реальном проекте вынести в .env)
 const JWT_SECRET = 'dev-secret-change-me';
