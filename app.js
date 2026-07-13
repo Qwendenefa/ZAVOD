@@ -476,7 +476,7 @@ app.get('/debug/users', asyncHandler(async (req, res) => {
 // Amvera прокидывает трафик на порт, указанный в amvera.yml -> run.containerPort.
 // Он должен совпадать с тем портом, который слушает приложение — используем переменную окружения PORT,
 // которую Amvera передаёт автоматически, с запасным значением для локальной разработки.
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 80;
 app.listen(PORT, () => console.log(`Сервер запущен и работает на порту ${PORT}`));
 
 // ----- ЗАКРЫТИЕ БАЗЫ ПРИ ОСТАНОВКЕ -----
