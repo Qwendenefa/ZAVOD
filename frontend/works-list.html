@@ -110,7 +110,7 @@
             const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
             const currentUserId = currentUser ? currentUser.id : null;
 
-            fetch('http://localhost:4000/api/works/all', {
+            fetch('/api/works/all', {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
             .then(res => {

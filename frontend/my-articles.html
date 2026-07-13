@@ -106,7 +106,7 @@
 
             const container = document.getElementById('worksList');
 
-            fetch('http://localhost:4000/api/works', {
+            fetch('/api/works', {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
             .then(res => {

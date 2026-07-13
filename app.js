@@ -14,10 +14,11 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '/frontend')));
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Секрет для JWT (в реальном проекте вынести в .env)
-const JWT_SECRET = 'dev-secret-change-me';
+// В проде задайте JWT_SECRET через «Переменные и секреты» в Amvera — не храните секрет в коде.
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 // ----- ПРОМИСИФИЦИРОВАННЫЕ МЕТОДЫ БД -----
 const dbGet = util.promisify(db.get.bind(db));
@@ -134,7 +135,13 @@ app.get('/me', authenticate, asyncHandler(async (req, res) => {
 
 // ----- ЗАГРУЗКА ФАЙЛОВ (multer) -----
 const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
-const uploadDir = path.join(__dirname, '../uploads');
+// В Amvera постоянное хранилище примонтировано в /data (см. amvera.yml -> run.persistenceMount).
+// Файлы, сохранённые не в /data, будут потеряны при каждом перезапуске/пересборке контейнера.
+// Локально (когда /data не существует) используем папку рядом с проектом — для разработки.
+const PERSIST_DIR = fs.existsSync('/data') ? '/data' : path.join(__dirname, 'data');
+fs.mkdirSync(PERSIST_DIR, { recursive: true });
+
+const uploadDir = path.join(PERSIST_DIR, 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
 
 const upload = multer({
@@ -466,7 +473,10 @@ app.get('/debug/users', asyncHandler(async (req, res) => {
 }));
 
 // ----- ЗАПУСК СЕРВЕРА -----
-const PORT = 4000;
+// Amvera прокидывает трафик на порт, указанный в amvera.yml -> run.containerPort.
+// Он должен совпадать с тем портом, который слушает приложение — используем переменную окружения PORT,
+// которую Amvera передаёт автоматически, с запасным значением для локальной разработки.
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Сервер запущен и работает на порту ${PORT}`));
 
 // ----- ЗАКРЫТИЕ БАЗЫ ПРИ ОСТАНОВКЕ -----

@@ -125,10 +125,10 @@
 
             // Загрузка профиля и работ
             Promise.all([
-                fetch('http://localhost:4000/me', {
+                fetch('/me', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 }),
-                fetch('http://localhost:4000/api/works', {
+                fetch('/api/works', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 })
             ])

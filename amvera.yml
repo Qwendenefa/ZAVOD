@@ -1,17 +1,13 @@
 meta:
-  environment: nodejs
+  environment: node
   toolchain:
     name: npm
     version: "20"
+
 build:
   skip: false
-  additionalCommands: null
-  artifacts:
-    "*": /
+
 run:
-  scriptName: null
-  scriptArguments: null
-  nodeArguments: null
   command: npm run start
+  containerPort: 3000
   persistenceMount: /data
-  containerPort: "80"

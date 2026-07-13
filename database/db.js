@@ -1,9 +1,14 @@
-// Подключаем библиотеки sqlite3 и path
+// Подключаем библиотеки sqlite3, path и fs
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-// Храним базу данных рядом с db.js, файл будет называться db.sqlite
-const db = new sqlite3.Database(path.join(__dirname, 'db.sqlite'));
+// В Amvera только папка /data (постоянное хранилище) переживает перезапуск/пересборку контейнера.
+// Если хранить db.sqlite рядом с кодом (в Code/Artifacts), база будет обнуляться при каждом деплое.
+// Локально (там, где /data нет) база сохраняется рядом с проектом — для удобства разработки.
+const PERSIST_DIR = fs.existsSync('/data') ? '/data' : path.join(__dirname, '..', 'data');
+fs.mkdirSync(PERSIST_DIR, { recursive: true });
+const db = new sqlite3.Database(path.join(PERSIST_DIR, 'db.sqlite'));
 
 // Создаём таблицу задач, если её ещё нет
 db.serialize(() => {
