@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Доступные работы — Экспертум</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <style>
+        .works-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .work-card {
+            background: white;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-left: 5px solid #007cba;
+        }
+        .work-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+        .work-card .work-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #035680;
+            margin: 0 0 8px 0;
+        }
+        .work-card .work-type {
+            display: inline-block;
+            background: #Dfe8f2;
+            color: #035680;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .work-card .work-meta {
+            margin-top: 12px;
+            font-size: 0.9rem;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .evaluate-btn {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .evaluate-btn:hover {
+            background: #035680;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .empty-state .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+        .empty-state p {
+            font-size: 1.2rem;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        .container h2 {
+            color: #035680;
+            border-bottom: 3px solid #Dfe8f2;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="navigation">
+            <h1 class="logo"><a href="index.html">Экспертум</a></h1>
+            <nav>
+                <ul>
+                    <li><a href="dashboard.html">Личный кабинет</a></li>
+                    <li><a href="#" id="logoutLink">Выйти</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <h2>📋 Доступные для оценки работы</h2>
+            <div id="worksList">Загрузка...</div>
+        </div>
+    </main>
+
+    <footer>
+        <div><h3>Контакты:</h3><p>email@example.com</p></div>
+        <div><h3>Адрес:</h3><p>г. Москва, ул. Примерная, д. 1</p></div>
+    </footer>
+
+    <script>
+        (function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            document.getElementById('logoutLink').addEventListener('click', (e) => {
+                e.preventDefault();
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = 'index.html';
+            });
+
+            const container = document.getElementById('worksList');
+
+            fetch('/api/works/available', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => {
+                if (!res.ok) {
+                    if (res.status === 403) {
+                        throw new Error('У вас нет прав эксперта. Обратитесь к администратору.');
+                    }
+                    throw new Error('Не удалось загрузить работы');
+                }
+                return res.json();
+            })
+            .then(works => {
+                if (works.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">🎉</div>
+                            <p>Нет доступных работ для оценки. Вы уже оценили все работы!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '<div class="works-grid">';
+                works.forEach(w => {
+                    const typeLabel = w.type === 'article' ? '📄 Научная статья' : '🏆 Конкурсная работа';
+                    const date = new Date(w.created_at).toLocaleDateString('ru-RU', {
+                        day: '2-digit', month: '2-digit', year: 'numeric'
+                    });
+                    // Выбираем форму в зависимости от типа работы
+                    const formUrl = w.type === 'article' 
+                        ? `form.html?workId=${w.id}` 
+                        : `expert-assessment.html?workId=${w.id}`;
+                    html += `
+                        <div class="work-card">
+                            <div class="work-title">${w.title}</div>
+                            <span class="work-type">${typeLabel}</span>
+                            <div class="work-meta">
+                                <span>📎 ${w.original_name}</span>
+                                <span class="work-date">${date}</span>
+                            </div>
+                            <div style="margin-top:12px;">
+                                <a href="${formUrl}" class="evaluate-btn">📝 Оценить</a>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            })
+            .catch(err => {
+                container.innerHTML = `<div style="color:red; text-align:center; padding: 20px;">❌ ${err.message}</div>`;
+                console.error(err);
+            });
+        })();
+    </script>
+</body>
+</html>

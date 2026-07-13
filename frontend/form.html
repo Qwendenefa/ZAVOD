@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рецензия</title>
+    <link rel="stylesheet" href="form.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="questionnaire">
+        <div id="statusMessage"></div>
+        <form id="reviewForm" action="#" method="post">
+            <h1 class="questionnaire-main-head">Рецензия</h1>
+            <p class="question-label">На статью: <span id="articleTitle">(загрузка...)</span></p>
+            <input type="hidden" id="work_id" name="work_id" value="">
+            <hr>
+
+            <!-- 1. Соответствие профилю -->
+            <div class="question-group">
+                <p class="question-label">1. Соответствие профилю журнала</p>
+                <div class="radio-group">
+                    <label class="square-radio"><span class="answer-subscribe">Да</span><input type="radio" name="profile_match" value="да" required></label>
+                    <label class="square-radio"><span class="answer-subscribe">Нет</span><input type="radio" name="profile_match" value="нет"></label>
+                </div>
+            </div>
+
+            <!-- 2. Характер статьи -->
+            <div class="question-group">
+                <p class="question-label">2. Характер статьи</p>
+                <div class="radio-group">
+                    <label class="square-radio"><span class="answer-subscribe">Обзорная</span><input type="radio" name="article_type" value="обзорная" required></label>
+                    <label class="square-radio"><span class="answer-subscribe">Оригинальная</span><input type="radio" name="article_type" value="оригинальная"></label>
+                </div>
+            </div>
+
+            <!-- 3. Оценка качества статьи (9 пунктов) -->
+            <div class="question-group">
+                <p class="question-label">3. Оценка качества статьи</p>
+                <div class="table-scroll">
+                <table class="quality-table">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Критерий</th>
+                            <th>Нет</th>
+                            <th>Низкая</th>
+                            <th>Средняя</th>
+                            <th>Высокая</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>1</td><td>Актуальность проблематики</td><td><input type="radio" name="quality_1" value="нет"></td><td><input type="radio" name="quality_1" value="низкая"></td><td><input type="radio" name="quality_1" value="средняя"></td><td><input type="radio" name="quality_1" value="высокая"></td></tr>
+                        <tr><td>2</td><td>Новизна материала</td><td><input type="radio" name="quality_2" value="нет"></td><td><input type="radio" name="quality_2" value="низкая"></td><td><input type="radio" name="quality_2" value="средняя"></td><td><input type="radio" name="quality_2" value="высокая"></td></tr>
+                        <tr><td>3</td><td>Корректность употребления терминологии</td><td><input type="radio" name="quality_3" value="нет"></td><td><input type="radio" name="quality_3" value="низкая"></td><td><input type="radio" name="quality_3" value="средняя"></td><td><input type="radio" name="quality_3" value="высокая"></td></tr>
+                        <tr><td>4</td><td>Уровень проведенных исследований</td><td><input type="radio" name="quality_4" value="нет"></td><td><input type="radio" name="quality_4" value="низкая"></td><td><input type="radio" name="quality_4" value="средняя"></td><td><input type="radio" name="quality_4" value="высокая"></td></tr>
+                        <tr><td>5</td><td>Структурированность материала, логичность изложения</td><td><input type="radio" name="quality_5" value="нет"></td><td><input type="radio" name="quality_5" value="низкая"></td><td><input type="radio" name="quality_5" value="средняя"></td><td><input type="radio" name="quality_5" value="высокая"></td></tr>
+                        <tr><td>6</td><td>Практическая значимость</td><td><input type="radio" name="quality_6" value="нет"></td><td><input type="radio" name="quality_6" value="низкая"></td><td><input type="radio" name="quality_6" value="средняя"></td><td><input type="radio" name="quality_6" value="высокая"></td></tr>
+                        <tr><td>7</td><td>Представительность и актуальность используемых источников литературы</td><td><input type="radio" name="quality_7" value="нет"></td><td><input type="radio" name="quality_7" value="низкая"></td><td><input type="radio" name="quality_7" value="средняя"></td><td><input type="radio" name="quality_7" value="высокая"></td></tr>
+                        <tr><td>8</td><td>Информативность аннотации</td><td><input type="radio" name="quality_8" value="нет"></td><td><input type="radio" name="quality_8" value="низкая"></td><td><input type="radio" name="quality_8" value="средняя"></td><td><input type="radio" name="quality_8" value="высокая"></td></tr>
+                        <tr><td>9</td><td>Соответствие требованиям к оформлению статьи в журнале</td><td><input type="radio" name="quality_9" value="нет"></td><td><input type="radio" name="quality_9" value="низкая"></td><td><input type="radio" name="quality_9" value="средняя"></td><td><input type="radio" name="quality_9" value="высокая"></td></tr>
+                    </tbody>
+                </table>
+                </div>
+            </div>
+
+            <!-- 4. Оценка рассматриваемой статьи (3 критерия, 5-балльная шкала) -->
+            <div class="question-group">
+                <p class="question-label">4. Оценка рассматриваемой статьи</p>
+                <div class="eval-item">
+                    <span>Научная новизна статьи</span>
+                    <div class="slider-container">
+                        <input type="range" min="1" max="5" step="1" value="3" name="eval_1" class="slider" data-display="eval1_display">
+                        <span class="slider-value" id="eval1_display">3</span>
+                    </div>
+                </div>
+                <div class="eval-item">
+                    <span>Актуальность темы статьи</span>
+                    <div class="slider-container">
+                        <input type="range" min="1" max="5" step="1" value="3" name="eval_2" class="slider" data-display="eval2_display">
+                        <span class="slider-value" id="eval2_display">3</span>
+                    </div>
+                </div>
+                <div class="eval-item">
+                    <span>Практическая ценность статьи</span>
+                    <div class="slider-container">
+                        <input type="range" min="1" max="5" step="1" value="3" name="eval_3" class="slider" data-display="eval3_display">
+                        <span class="slider-value" id="eval3_display">3</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Заключение о публикации -->
+            <div class="question-group">
+                <p class="question-label">5. Заключение о публикации</p>
+                <div class="radio-group vertical">
+                    <label><input type="radio" name="publication_decision" value="as_is" required> Статья может быть опубликована в предоставленном виде</label>
+                    <label><input type="radio" name="publication_decision" value="minor_revision"> Статья может быть опубликована с незначительными доработками</label>
+                    <label><input type="radio" name="publication_decision" value="major_revision"> Статья может быть опубликована при условии существенных исправлений (повторное рассмотрение)</label>
+                    <label><input type="radio" name="publication_decision" value="reject"> Статья не рекомендуется к публикации</label>
+                </div>
+            </div>
+
+            <!-- 6. Краткое обоснование -->
+            <div class="question-group">
+                <p class="question-label">6. Краткое обоснование заключения</p>
+                <textarea name="justification" rows="6" cols="50" placeholder="Введите обоснование..."></textarea>
+            </div>
+
+            <!-- Кнопки -->
+            <div class="buttons">
+                <input class="submit-button" type="submit" value="Завершить">
+                <svg class="next-page" viewBox="0 0 9 14" width="30px">
+                    <path class="pointer-right" d="M6.660,8.922 L6.660,8.922 L2.350,13.408 L0.503,11.486 L4.813,7.000 L0.503,2.515 L2.350,0.592 L8.507,7.000 L6.660,8.922 Z"/>
+                </svg>
+            </div>
+        </form>
+    </div>
+    <script>
+        // Обновление цифр рядом с бегунками
+        document.querySelectorAll('.slider').forEach(slider => {
+            const display = document.getElementById(slider.dataset.display);
+            slider.addEventListener('input', () => { display.textContent = slider.value; });
+        });
+
+        (function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            const workId = params.get('workId');
+            const form = document.getElementById('reviewForm');
+            const statusMessage = document.getElementById('statusMessage');
+            const articleTitle = document.getElementById('articleTitle');
+
+            if (!workId) {
+                statusMessage.innerHTML = '<div class="warning">⚠️ Не указана работа для оценки. Откройте эту форму со страницы списка работ.</div>';
+                form.style.display = 'none';
+                return;
+            }
+            document.getElementById('work_id').value = workId;
+
+            // Загружаем информацию о работе и проверяем, не оценена ли она уже этим пользователем
+            Promise.all([
+                fetch(`/api/works/${workId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch(`/api/works/${workId}/evaluation-status`, { headers: { 'Authorization': `Bearer ${token}` } })
+            ]).then(async ([workRes, statusRes]) => {
+                if (!workRes.ok) throw new Error('Работа не найдена');
+                const work = await workRes.json();
+                articleTitle.textContent = work.title;
+
+                if (work.type !== 'article') {
+                    statusMessage.innerHTML = '<div class="warning">⚠️ Эта форма предназначена для научных статей. Для конкурсных работ используйте форму экспертного листа.</div>';
+                    form.style.display = 'none';
+                    return;
+                }
+
+                if (!statusRes.ok) throw new Error('Не удалось проверить статус оценки');
+                const status = await statusRes.json();
+
+                if (status.isOwnWork) {
+                    statusMessage.innerHTML = '<div class="warning">⚠️ Нельзя оценивать собственную работу.</div>';
+                    form.style.display = 'none';
+                    return;
+                }
+
+                if (status.alreadyEvaluated) {
+                    statusMessage.innerHTML = `
+                        <div class="warning">
+                            ✅ Вы уже оценили эту работу.
+                            <a href="results.html?workId=${workId}">Посмотреть результаты</a>
+                        </div>
+                    `;
+                    form.style.display = 'none';
+                }
+            }).catch(err => {
+                statusMessage.innerHTML = `<div class="warning">❌ ${err.message}</div>`;
+                console.error(err);
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData);
+
+                try {
+                    const response = await fetch('/api/reviews', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        statusMessage.innerHTML = '<div class="warning">✅ Рецензия успешно сохранена! Перенаправление...</div>';
+                        setTimeout(() => {
+                            window.location.href = `results.html?workId=${workId}`;
+                        }, 1200);
+                    } else {
+                        statusMessage.innerHTML = `<div class="warning">❌ ${result.error || 'Ошибка сохранения'}</div>`;
+                    }
+                } catch (err) {
+                    statusMessage.innerHTML = '<div class="warning">❌ Ошибка соединения с сервером</div>';
+                    console.error(err);
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

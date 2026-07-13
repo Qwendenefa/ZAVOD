@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Экспертный лист</title>
+    <link rel="stylesheet" href="form.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <style>
+        /* Ваши стили */
+        .expert-header {
+            text-align: center;
+            font-size: clamp(20px, 4vw + 8px, 28px);
+            font-weight: 600;
+            color: #035680;
+            margin-bottom: 5px;
+        }
+        .expert-subheader {
+            text-align: center;
+            font-size: clamp(14px, 2vw + 6px, 18px);
+            color: #035680;
+            margin-bottom: 20px;
+        }
+        .contestant-field label,
+        .commission-member label {
+            font-weight: 500;
+            color: #035680;
+            font-size: clamp(15px, 2vw + 10px, 18px);
+        }
+        .contestant-field input,
+        .commission-member input {
+            width: 100%;
+            max-width: 400px;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+            margin-top: 5px;
+        }
+        .general-conclusion textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: vertical;
+        }
+        #work_id {
+            display: none;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ffeeba;
+        }
+
+        /* Стили для слайдеров */
+        .eval-item {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 15px;
+            background: rgba(255,255,255,0.3);
+            padding: 8px 15px;
+            border-radius: 8px;
+        }
+        .eval-item span:first-child {
+            min-width: 140px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+        input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #337AB7;
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #337AB7;
+            cursor: pointer;
+            border: none;
+        }
+        .slider-value {
+            font-weight: 700;
+            font-size: 18px;
+            min-width: 25px;
+            text-align: center;
+            color: #1a4d6b;
+        }
+
+        /* Стили для иконки подсказки */
+        .eval-item .help-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            min-width: 14px;
+            min-height: 14px;
+            max-width: 14px;
+            max-height: 14px;
+            background: #007cba;
+            color: white;
+            border-radius: 50%;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: help;
+            position: relative;
+            margin-left: 4px;
+            flex-shrink: 0;
+            line-height: 1;
+            padding: 0;
+            overflow: visible;
+        }
+
+        .eval-item .help-icon:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: normal;
+            white-space: nowrap;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+
+        .eval-item .help-icon:hover::before {
+            content: '';
+            position: absolute;
+            bottom: calc(100% + 2px);
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #333;
+            z-index: 100;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="navigation">
+            <h1 class="logo"><a href="index.html">Экспертум</a></h1>
+            <nav>
+                <ul>
+                    <li><a href="dashboard.html">Личный кабинет</a></li>
+                    <li><a href="#" id="logoutLink">Выйти</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="questionnaire">
+            <form id="expertForm" method="POST">
+                <h1 class="expert-header">ЭКСПЕРТНЫЙ ЛИСТ</h1>
+                <p class="expert-subheader">Конкурса научно-технических работ в АО «НПО «Обуховский завод»</p>
+                <hr>
+
+                <!-- Предупреждение для демо -->
+                <div id="workIdWarning" class="warning" style="display:none;">
+                    ⚠️ <strong>Внимание:</strong> ID работы не указан. Страница открыта в режиме просмотра. Для отправки формы передайте параметр <code>?workId=123</code>.
+                </div>
+
+                <!-- ФИО конкурсанта -->
+                <div class="question-group contestant-field">
+                    <label for="contestant_name">ФИО конкурсанта <span style="color:red;">*</span></label>
+                    <input type="text" id="contestant_name" name="contestant_name" placeholder="Введите ФИО" required>
+                </div>
+
+                <input type="hidden" id="work_id" name="work_id" value="">
+
+                <!-- 1. Оценка качества (11 критериев) -->
+                <div class="question-group">
+                    <p class="question-label" style="font-weight:600; font-size:clamp(16px, 2.2vw + 10px, 20px);">1. Оценка качества конкурсной работы</p>
+                    <div class="table-scroll">
+                        <table class="quality-table">
+                            <thead>
+                                <tr>
+                                    <th>№</th>
+                                    <th>Критерий</th>
+                                    <th>Нет</th>
+                                    <th>Низкая</th>
+                                    <th>Средняя</th>
+                                    <th>Высокая</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>1</td><td>Актуальность работы</td><td><input type="radio" name="criteria_1" value="нет" required></td><td><input type="radio" name="criteria_1" value="низкая"></td><td><input type="radio" name="criteria_1" value="средняя"></td><td><input type="radio" name="criteria_1" value="высокая"></td></tr>
+                                <tr><td>2</td><td>Востребованность работы в Обществе</td><td><input type="radio" name="criteria_2" value="нет" required></td><td><input type="radio" name="criteria_2" value="низкая"></td><td><input type="radio" name="criteria_2" value="средняя"></td><td><input type="radio" name="criteria_2" value="высокая"></td></tr>
+                                <tr><td>3</td><td>Инновационность работы</td><td><input type="radio" name="criteria_3" value="нет" required></td><td><input type="radio" name="criteria_3" value="низкая"></td><td><input type="radio" name="criteria_3" value="средняя"></td><td><input type="radio" name="criteria_3" value="высокая"></td></tr>
+                                <tr><td>4</td><td>Корректность употребления терминологии</td><td><input type="radio" name="criteria_4" value="нет" required></td><td><input type="radio" name="criteria_4" value="низкая"></td><td><input type="radio" name="criteria_4" value="средняя"></td><td><input type="radio" name="criteria_4" value="высокая"></td></tr>
+                                <tr><td>5</td><td>Уровень проведенных исследований</td><td><input type="radio" name="criteria_5" value="нет" required></td><td><input type="radio" name="criteria_5" value="низкая"></td><td><input type="radio" name="criteria_5" value="средняя"></td><td><input type="radio" name="criteria_5" value="высокая"></td></tr>
+                                <tr><td>6</td><td>Структурированность материала, логичность изложения</td><td><input type="radio" name="criteria_6" value="нет" required></td><td><input type="radio" name="criteria_6" value="низкая"></td><td><input type="radio" name="criteria_6" value="средняя"></td><td><input type="radio" name="criteria_6" value="высокая"></td></tr>
+                                <tr><td>7</td><td>Перспективность с точки зрения применения работы на практике</td><td><input type="radio" name="criteria_7" value="нет" required></td><td><input type="radio" name="criteria_7" value="низкая"></td><td><input type="radio" name="criteria_7" value="средняя"></td><td><input type="radio" name="criteria_7" value="высокая"></td></tr>
+                                <tr><td>8</td><td>Апробация работы (при наличии подтверждающих документов)</td><td><input type="radio" name="criteria_8" value="нет" required></td><td><input type="radio" name="criteria_8" value="низкая"></td><td><input type="radio" name="criteria_8" value="средняя"></td><td><input type="radio" name="criteria_8" value="высокая"></td></tr>
+                                <tr><td>9</td><td>Экономическая и/или техническая целесообразность</td><td><input type="radio" name="criteria_9" value="нет" required></td><td><input type="radio" name="criteria_9" value="низкая"></td><td><input type="radio" name="criteria_9" value="средняя"></td><td><input type="radio" name="criteria_9" value="высокая"></td></tr>
+                                <tr><td>10</td><td>Научно-технический уровень работы</td><td><input type="radio" name="criteria_10" value="нет" required></td><td><input type="radio" name="criteria_10" value="низкая"></td><td><input type="radio" name="criteria_10" value="средняя"></td><td><input type="radio" name="criteria_10" value="высокая"></td></tr>
+                                <tr><td>11</td><td>Информативность аннотации</td><td><input type="radio" name="criteria_11" value="нет" required></td><td><input type="radio" name="criteria_11" value="низкая"></td><td><input type="radio" name="criteria_11" value="средняя"></td><td><input type="radio" name="criteria_11" value="высокая"></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- === БЛОК С ПОДСКАЗКАМИ === -->
+                <div class="question-group">
+                    <p class="question-label" style="font-weight:600; font-size:clamp(16px, 2.2vw + 10px, 20px);">
+                        2. Оценка по параметрам результативности, оперативности и ресурсоёмкости
+                    </p>
+
+                    <div class="eval-item">
+                        <span>
+                            Результативность
+                            <span class="help-icon" data-tooltip="1 – низкая, 2 – незначительная, 3 – ниже ожидаемой, 4 – ожидаемая, 5 – поразительная">?</span>
+                        </span>
+                        <div class="slider-container">
+                            <input type="range" name="resultativity" min="1" max="5" step="1" value="3" class="slider" data-display="resDisplay">
+                            <span class="slider-value" id="resDisplay">3</span>
+                        </div>
+                    </div>
+
+                    <div class="eval-item">
+                        <span>
+                            Оперативность
+                            <span class="help-icon" data-tooltip="1 – очевидно недостижима, 2 – скорее недостижима, 3 – скорее достижима, 4 – вероятно достижима, 5 – очевидно достижима">?</span>
+                        </span>
+                        <div class="slider-container">
+                            <input type="range" name="operationality" min="1" max="5" step="1" value="3" class="slider" data-display="opDisplay">
+                            <span class="slider-value" id="opDisplay">3</span>
+                        </div>
+                    </div>
+
+                    <div class="eval-item">
+                        <span>
+                            Ресурсоёмкость
+                            <span class="help-icon" data-tooltip="1 – чрезвычайно высокая, 2 – высокая, 3 – вполне реальная, 4 – невысокая, 5 – низкая">?</span>
+                        </span>
+                        <div class="slider-container">
+                            <input type="range" name="resource_intensity" min="1" max="5" step="1" value="3" class="slider" data-display="riDisplay">
+                            <span class="slider-value" id="riDisplay">3</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Общее заключение -->
+                <div class="question-group general-conclusion">
+                    <p class="question-label" style="font-weight:600; font-size:clamp(16px, 2.2vw + 10px, 20px);">3. Общее заключение о конкурсной работе</p>
+                    <textarea name="general_conclusion" placeholder="Введите заключение..." required></textarea>
+                </div>
+
+                <!-- Член комиссии -->
+                <div class="question-group commission-member">
+                    <label for="commission_member">Член конкурсной комиссии <span style="color:red;">*</span></label>
+                    <input type="text" id="commission_member" name="commission_member" placeholder="Введите ФИО члена комиссии" required>
+                </div>
+
+                <div class="buttons">
+                    <button type="submit" class="submit-button">Отправить</button>
+                    <svg class="next-page" viewBox="0 0 9 14" width="30px">
+                        <path class="pointer-right" d="M6.660,8.922 L6.660,8.922 L2.350,13.408 L0.503,11.486 L4.813,7.000 L0.503,2.515 L2.350,0.592 L8.507,7.000 L6.660,8.922 Z"/>
+                    </svg>
+                </div>
+
+                <div id="message" style="margin-top:15px; text-align:center;"></div>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <div><h3>Контакты:</h3><p>email@example.com</p></div>
+        <div><h3>Адрес:</h3><p>г. Москва, ул. Примерная, д. 1</p></div>
+    </footer>
+
+    <script>
+        (function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+            document.getElementById('logoutLink').addEventListener('click', (e) => {
+                e.preventDefault();
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = 'index.html';
+            });
+
+            const form = document.getElementById('expertForm');
+            const messageDiv = document.getElementById('message');
+
+            const params = new URLSearchParams(window.location.search);
+            const workId = params.get('workId');
+            if (!workId) {
+                document.getElementById('workIdWarning').style.display = 'block';
+                form.style.display = 'none';
+                return;
+            }
+            document.getElementById('work_id').value = workId;
+
+            // Обновление значений слайдеров
+            document.querySelectorAll('.slider').forEach(slider => {
+                const display = document.getElementById(slider.dataset.display);
+                slider.addEventListener('input', () => {
+                    display.textContent = slider.value;
+                });
+            });
+
+            // Проверяем работу и статус оценки перед показом формы
+            Promise.all([
+                fetch(`/api/works/${workId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch(`/api/works/${workId}/evaluation-status`, { headers: { 'Authorization': `Bearer ${token}` } })
+            ]).then(async ([workRes, statusRes]) => {
+                if (!workRes.ok) throw new Error('Работа не найдена');
+                const work = await workRes.json();
+
+                if (work.type !== 'competition') {
+                    messageDiv.innerHTML = '<div class="warning">⚠️ Этот экспертный лист предназначен для конкурсных работ. Для научных статей используйте форму рецензии.</div>';
+                    form.style.display = 'none';
+                    return;
+                }
+
+                if (!statusRes.ok) throw new Error('Не удалось проверить статус оценки');
+                const status = await statusRes.json();
+
+                if (status.isOwnWork) {
+                    messageDiv.innerHTML = '<div class="warning">⚠️ Нельзя оценивать собственную работу.</div>';
+                    form.style.display = 'none';
+                    return;
+                }
+
+                if (status.alreadyEvaluated) {
+                    messageDiv.innerHTML = `
+                        <div class="warning">
+                            ✅ Вы уже оценили эту работу.
+                            <a href="results.html?workId=${workId}">Посмотреть результаты</a>
+                        </div>
+                    `;
+                    form.style.display = 'none';
+                }
+            }).catch(err => {
+                messageDiv.innerHTML = `<div class="warning">❌ ${err.message}</div>`;
+                console.error(err);
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData);
+
+                try {
+                    const response = await fetch('/api/expert-assessment', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                        messageDiv.innerHTML = '<span style="color:green;">Оценка успешно сохранена! Перенаправление...</span>';
+                        setTimeout(() => {
+                            window.location.href = `results.html?workId=${workId}`;
+                        }, 1200);
+                    } else {
+                        messageDiv.innerHTML = `<span style="color:red;">${result.error || 'Ошибка сохранения'}</span>`;
+                    }
+                } catch (err) {
+                    messageDiv.innerHTML = '<span style="color:red;">Ошибка соединения с сервером</span>';
+                    console.error(err);
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
