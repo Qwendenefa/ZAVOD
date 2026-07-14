@@ -13,7 +13,7 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(express.static(path.join(__dirname, '/frontend')));
 
 // Секрет для JWT (в реальном проекте вынести в .env)
 // В проде задайте JWT_SECRET через «Переменные и секреты» в Amvera — не храните секрет в коде.
