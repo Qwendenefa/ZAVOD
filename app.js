@@ -2,6 +2,10 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+
+console.log('✅ app.js существует:', fs.existsSync(__filename));
+console.log('✅ Папка frontend существует:', fs.existsSync(path.join(__dirname, 'frontend')));
+console.log('✅ Папка database существует:', fs.existsSync(path.join(__dirname, 'database')));
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
