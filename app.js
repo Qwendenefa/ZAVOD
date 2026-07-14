@@ -15,6 +15,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '/frontend')));
 
+app.get('/debug-files', (req, res) => {
+    const path = require('path');
+    const frontendPath = path.join(__dirname, '../frontend');
+    fs.readdir(frontendPath, (err, files) => {
+        if (err) {
+            return res.status(500).send(`Папка frontend не найдена по пути: ${frontendPath}`);
+        }
+        res.send(`Файлы в папке frontend: ${files.join(', ')}`);
+    });
+});
+
 // Секрет для JWT (в реальном проекте вынести в .env)
 // В проде задайте JWT_SECRET через «Переменные и секреты» в Amvera — не храните секрет в коде.
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
