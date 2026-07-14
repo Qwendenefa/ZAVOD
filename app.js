@@ -50,7 +50,7 @@ if (frontendPath) {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'frontend')));
+//app.use(express.static(path.join(__dirname, 'frontend')));
 
 app.get('/debug-files', (req, res) => {
     const path = require('path');
