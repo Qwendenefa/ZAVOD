@@ -1,13 +1,10 @@
- meta:
+meta:
   environment: node
   toolchain:
     name: npm
     version: 22
 
- build:
-  skip: false
-
- run:
-  command: npm run start
-  containerPort: 80
+run:
+  scriptName: app.js
   persistenceMount: /data
+  containerPort: 80
