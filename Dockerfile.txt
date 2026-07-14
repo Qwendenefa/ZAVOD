@@ -14,7 +14,7 @@ RUN npm install
 COPY . .
 
 # Сообщаем Docker, что приложение будет слушать порт 8080
-EXPOSE 8080
+EXPOSE 3000
 
 # Команда для запуска приложения
 CMD ["node", "server.js"]
