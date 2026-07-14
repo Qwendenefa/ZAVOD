@@ -4,10 +4,10 @@
     name: npm
     version: 22
 
-  build:
+ build:
   skip: false
 
-  run:
+ run:
   command: npm run start
   containerPort: 80
   persistenceMount: /data
