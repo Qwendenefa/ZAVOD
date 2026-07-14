@@ -11,6 +11,33 @@ const db = require('./database/db');
 
 const app = express();
 
+// Отладочный маршрут для поиска папки frontend
+app.get('/debug', (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    const cwd = process.cwd();
+    const dirname = __dirname;
+    const frontendCandidates = [
+        path.join(__dirname, 'frontend'),
+        path.join(__dirname, '../frontend'),
+        path.join('/', 'frontend'),
+        path.join(cwd, 'frontend')
+    ];
+    const results = frontendCandidates.map(p => {
+        const exists = fs.existsSync(p);
+        let files = [];
+        if (exists) {
+            try { files = fs.readdirSync(p); } catch(e) { files = ['ошибка чтения']; }
+        }
+        return { path: p, exists, files };
+    });
+    res.json({
+        cwd,
+        __dirname,
+        frontendCandidates: results
+    });
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'frontend')));
