@@ -9,5 +9,5 @@ build:
 
 run:
   command: npm run start
-  containerPort: 80
+  containerPort: 3000
   persistenceMount: /data
