@@ -11,21 +11,21 @@ const db = require('./database/db');
 
 const app = express();
 
+// ----- РАЗДАЧА СТАТИКИ (исправлено) -----
+app.use(express.static('/frontend'));
+
+// ----- ТЕСТОВЫЙ МАРШРУТ ДЛЯ ПРОВЕРКИ -----
 app.get('/ping', (req, res) => {
     res.send('pong');
 });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '/frontend/index.html')));
 
 // Секрет для JWT (в реальном проекте вынести в .env)
-// В проде задайте JWT_SECRET через «Переменные и секреты» в Amvera — не храните секрет в коде.
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
 // ----- МЕТОДЫ БД -----
-// db.js отдаёт объект node:sqlite DatabaseSync — методы синхронные, но здесь
-// оборачиваем их в Promise, чтобы весь остальной код (написанный под async/await) не менялся.
 const dbGet = (sql, params = []) => Promise.resolve(db.prepare(sql).get(...params));
 const dbAll = (sql, params = []) => Promise.resolve(db.prepare(sql).all(...params));
 const dbRun = (sql, params = []) => {
@@ -33,7 +33,6 @@ const dbRun = (sql, params = []) => {
   return Promise.resolve({ lastID: Number(info.lastInsertRowid), changes: Number(info.changes) });
 };
 
-// Оборачивает async-обработчик, чтобы ошибки уходили в централизованный middleware
 const asyncHandler = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
 // ----- СЛУЖЕБНЫЕ МАРШРУТЫ -----
@@ -137,9 +136,6 @@ app.get('/me', authenticate, asyncHandler(async (req, res) => {
 
 // ----- ЗАГРУЗКА ФАЙЛОВ (multer) -----
 const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
-// В Amvera постоянное хранилище примонтировано в /data (см. amvera.yml -> run.persistenceMount).
-// Файлы, сохранённые не в /data, будут потеряны при каждом перезапуске/пересборке контейнера.
-// Локально (когда /data не существует) используем папку рядом с проектом — для разработки.
 const PERSIST_DIR = fs.existsSync('/data') ? '/data' : path.join(__dirname, 'data');
 fs.mkdirSync(PERSIST_DIR, { recursive: true });
 
@@ -154,14 +150,13 @@ const upload = multer({
             cb(null, unique + path.extname(file.originalname));
         }
     }),
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+    limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         const isAllowed = ALLOWED_EXTENSIONS.includes(path.extname(file.originalname).toLowerCase());
         cb(isAllowed ? null : new Error('Разрешены только PDF, DOC, DOCX'), isAllowed);
     }
 });
 
-// Загрузка новой работы
 app.post('/api/works', authenticate, upload.single('file'), asyncHandler(async (req, res) => {
     const { title, type } = req.body;
     const file = req.file;
@@ -170,7 +165,6 @@ app.post('/api/works', authenticate, upload.single('file'), asyncHandler(async (
         return res.status(400).json({ error: 'Все поля обязательны' });
     }
 
-    // Перекодируем имя файла из Windows-1251 в UTF-8
     const originalName = iconv.decode(Buffer.from(file.originalname, 'binary'), 'win1251');
 
     const { lastID } = await dbRun(
@@ -181,7 +175,6 @@ app.post('/api/works', authenticate, upload.single('file'), asyncHandler(async (
     res.status(201).json({ id: lastID, title, type, file_path: file.path, original_name: originalName });
 }));
 
-// Скачивание файла по ID работы
 app.get('/api/works/:id/file', authenticate, asyncHandler(async (req, res) => {
     const row = await dbGet('SELECT file_path, original_name FROM works WHERE id = ?', [req.params.id]);
     if (!row) return res.status(404).json({ error: 'Файл не найден' });
@@ -189,7 +182,6 @@ app.get('/api/works/:id/file', authenticate, asyncHandler(async (req, res) => {
     res.download(row.file_path, row.original_name);
 }));
 
-// Список работ текущего пользователя
 app.get('/api/works', authenticate, asyncHandler(async (req, res) => {
     const rows = await dbAll(
         'SELECT id, title, type, original_name, created_at FROM works WHERE user_id = ? ORDER BY created_at DESC',
@@ -198,9 +190,6 @@ app.get('/api/works', authenticate, asyncHandler(async (req, res) => {
     res.json(rows);
 }));
 
-// Список всех работ (для авторизованных пользователей)
-// Для каждой работы дополнительно указываем, оценил ли её уже текущий пользователь —
-// фронтенд использует это, чтобы показать либо кнопку "Оценить", либо "Посмотреть результаты".
 app.get('/api/works/all', authenticate, asyncHandler(async (req, res) => {
     const rows = await dbAll(`
         SELECT w.id, w.title, w.type, w.original_name, w.created_at, w.user_id, u.login AS author,
@@ -215,8 +204,6 @@ app.get('/api/works/all', authenticate, asyncHandler(async (req, res) => {
     res.json(rows.map(r => ({ ...r, reviewed_by_me: !!r.reviewed_by_me })));
 }));
 
-// Работы, доступные текущему пользователю для оценки:
-// не свои и ещё не оценённые им работы.
 app.get('/api/works/available', authenticate, asyncHandler(async (req, res) => {
     const rows = await dbAll(`
         SELECT w.id, w.title, w.type, w.original_name, w.created_at, u.login AS author
@@ -230,7 +217,6 @@ app.get('/api/works/available', authenticate, asyncHandler(async (req, res) => {
     res.json(rows);
 }));
 
-// Базовая информация об одной работе (используется формами оценки для заголовка и проверки типа)
 app.get('/api/works/:id', authenticate, asyncHandler(async (req, res) => {
     const work = await dbGet(
         'SELECT id, title, type, original_name, user_id, created_at FROM works WHERE id = ?',
@@ -240,7 +226,6 @@ app.get('/api/works/:id', authenticate, asyncHandler(async (req, res) => {
     res.json(work);
 }));
 
-// Статус оценки конкретной работы текущим пользователем
 app.get('/api/works/:id/evaluation-status', authenticate, asyncHandler(async (req, res) => {
     const work = await dbGet('SELECT id, type, user_id FROM works WHERE id = ?', [req.params.id]);
     if (!work) return res.status(404).json({ error: 'Работа не найдена' });
@@ -260,7 +245,6 @@ app.get('/api/works/:id/evaluation-status', authenticate, asyncHandler(async (re
     });
 }));
 
-// Сохранение рецензии на научную статью (форма form.html)
 app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
     const {
         work_id, profile_match, article_type,
@@ -311,7 +295,6 @@ app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
     }
 }));
 
-// Сохранение экспертного листа по конкурсной работе (форма expert-assessment.html)
 app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) => {
     const {
         work_id, contestant_name,
@@ -366,8 +349,6 @@ app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) =
     }
 }));
 
-// Результаты оценки работы с базовым анализом.
-// Доступно автору работы и всем, кто уже оставил по ней оценку.
 app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) => {
     const work = await dbGet(
         'SELECT w.id, w.title, w.type, w.original_name, w.user_id, u.login AS author FROM works w JOIN users u ON w.user_id = u.id WHERE w.id = ?',
@@ -468,20 +449,17 @@ app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) =>
     }
 }));
 
-// ----- ДЛЯ ОТЛАДКИ (можно удалить) -----
+// ----- ДЛЯ ОТЛАДКИ -----
 app.get('/debug/users', asyncHandler(async (req, res) => {
     const rows = await dbAll('SELECT id, email, login, role, created_at FROM users');
     res.json(rows);
 }));
 
-// ----- ЗАПУСК СЕРВЕРА -----
-// Amvera прокидывает трафик на порт, указанный в amvera.yml -> run.containerPort.
-// Он должен совпадать с тем портом, который слушает приложение — используем переменную окружения PORT,
-// которую Amvera передаёт автоматически, с запасным значением для локальной разработки.
+// ----- ЗАПУСК СЕРВЕРА (исправлено) -----
 const PORT = process.env.PORT || 80;
-app.listen(PORT, () => console.log(`Сервер запущен и работает на порту ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Сервер запущен и работает на порту ${PORT}`));
 
-// ----- ЗАКРЫТИЕ БАЗЫ ПРИ ОСТАНОВКЕ -----
+// ----- ЗАКРЫТИЕ БАЗЫ -----
 function shutdown() {
     console.log('Останавливаем сервер... ⛔');
     try {
@@ -497,7 +475,7 @@ function shutdown() {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-// ----- ЦЕНТРАЛИЗОВАННЫЙ ОБРАБОТЧИК ОШИБОК (в конце) -----
+// ----- ЦЕНТРАЛИЗОВАННЫЙ ОБРАБОТЧИК ОШИБОК -----
 app.use((err, req, res, next) => {
     console.error('Unexpected error:', err);
     res.status(500).json({ error: 'Упс! Что-то пошло не так. Попробуй ещё раз.' });
