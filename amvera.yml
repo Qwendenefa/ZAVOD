@@ -2,7 +2,7 @@
   environment: node
   toolchain:
     name: npm
-    version: "22"
+    version: 22
 
 build:
   skip: false
