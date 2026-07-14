@@ -2,7 +2,6 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const util = require('util');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -14,22 +13,21 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '/frontend')));
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Секрет для JWT (в реальном проекте вынести в .env)
 // В проде задайте JWT_SECRET через «Переменные и секреты» в Amvera — не храните секрет в коде.
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-// ----- ПРОМИСИФИЦИРОВАННЫЕ МЕТОДЫ БД -----
-const dbGet = util.promisify(db.get.bind(db));
-const dbAll = util.promisify(db.all.bind(db));
-const dbRun = (sql, params = []) =>
-  new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) return reject(err);
-      resolve(this); // this.lastID, this.changes
-    });
-  });
+// ----- МЕТОДЫ БД -----
+// db.js отдаёт объект node:sqlite DatabaseSync — методы синхронные, но здесь
+// оборачиваем их в Promise, чтобы весь остальной код (написанный под async/await) не менялся.
+const dbGet = (sql, params = []) => Promise.resolve(db.prepare(sql).get(...params));
+const dbAll = (sql, params = []) => Promise.resolve(db.prepare(sql).all(...params));
+const dbRun = (sql, params = []) => {
+  const info = db.prepare(sql).run(...params);
+  return Promise.resolve({ lastID: Number(info.lastInsertRowid), changes: Number(info.changes) });
+};
 
 // Оборачивает async-обработчик, чтобы ошибки уходили в централизованный middleware
 const asyncHandler = (fn) => (req, res, next) => fn(req, res, next).catch(next);
@@ -476,20 +474,20 @@ app.get('/debug/users', asyncHandler(async (req, res) => {
 // Amvera прокидывает трафик на порт, указанный в amvera.yml -> run.containerPort.
 // Он должен совпадать с тем портом, который слушает приложение — используем переменную окружения PORT,
 // которую Amvera передаёт автоматически, с запасным значением для локальной разработки.
-const PORT = process.env.PORT || 80 ;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Сервер запущен и работает на порту ${PORT}`));
 
 // ----- ЗАКРЫТИЕ БАЗЫ ПРИ ОСТАНОВКЕ -----
 function shutdown() {
     console.log('Останавливаем сервер... ⛔');
-    db.close((err) => {
-        if (err) {
-            console.error('Не получилось закрыть базу:', err.message);
-            return process.exit(1);
-        }
+    try {
+        db.close();
         console.log('База закрыта. До встречи! 👋');
         process.exit(0);
-    });
+    } catch (err) {
+        console.error('Не получилось закрыть базу:', err.message);
+        process.exit(1);
+    }
 }
 
 process.on('SIGINT', shutdown);

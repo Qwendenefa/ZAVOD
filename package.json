@@ -12,12 +12,14 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22.22.0"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "express": "^5.2.1",
     "iconv-lite": "^0.7.3",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^2.2.0",
-    "sqlite3": "^6.0.1"
+    "multer": "^2.2.0"
   }
 }

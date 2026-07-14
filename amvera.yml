@@ -2,11 +2,10 @@ meta:
   environment: node
   toolchain:
     name: npm
-    version: "20"
+    version: "24"
 
 build:
   skip: false
-  additionalCommands: apt-get update && apt-get install -y python3 make g++ && npm rebuild sqlite3 --build-from-source
 
 run:
   command: npm run start
