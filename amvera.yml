@@ -1,4 +1,4 @@
-meta:
+ meta:
   environment: node
   toolchain:
     name: npm
