@@ -10,7 +10,7 @@ run:
   containerPort: 80
 
 artifacts:
-  - /app/frontend
-  - /app.js      # Скопировать файл app.js
+  - /frontend
+  - /app.js
   - /package.json
-  - /database    # Если нужно
+  - /database
