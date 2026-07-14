@@ -7,79 +7,138 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const iconv = require('iconv-lite');
 
-const { dbReady, persistDb } = require('./database/db');
+// Используем нативный better-sqlite3 (быстрее, чем sql.js)
+const Database = require('better-sqlite3');
 
 const app = express();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'frontend')));
+// ---- Настройка БД (лучше вынести в отдельный файл, но здесь упрощённо) ----
+const PERSIST_DIR = fs.existsSync('/data') ? '/data' : path.join(__dirname, 'data');
+fs.mkdirSync(PERSIST_DIR, { recursive: true });
+const DB_PATH = path.join(PERSIST_DIR, 'db.sqlite');
 
-// Секрет для JWT (в реальном проекте вынести в .env)
-// В проде задайте JWT_SECRET через «Переменные и секреты» в Amvera — не храните секрет в коде.
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+// Открываем БД в режиме WAL для повышения производительности
+const db = new Database(DB_PATH);
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+db.pragma('encoding = "UTF-8"');
 
-// ----- МЕТОДЫ БД -----
-// db.js использует sql.js (SQLite в WebAssembly) — инициализация асинхронная,
-// поэтому dbReady это промис с готовой базой. Оборачиваем обращения так, чтобы
-// весь остальной код (написанный под async/await) остался без изменений.
-const dbGet = async (sql, params = []) => {
-    const db = await dbReady;
-    const stmt = db.prepare(sql);
-    stmt.bind(params);
-    const row = stmt.step() ? stmt.getAsObject() : undefined;
-    stmt.free();
-    return row;
+// Инициализация таблиц (синхронно, один раз при старте)
+const initDb = () => {
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS users(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            login TEXT UNIQUE,
+            password_hash TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            role TEXT DEFAULT 'author',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS works (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            type TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            original_name TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    `);
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            work_id INTEGER NOT NULL,
+            expert_id INTEGER NOT NULL,
+            profile_match TEXT NOT NULL,
+            article_type TEXT NOT NULL,
+            quality_1 TEXT, quality_2 TEXT, quality_3 TEXT,
+            quality_4 TEXT, quality_5 TEXT, quality_6 TEXT,
+            quality_7 TEXT, quality_8 TEXT, quality_9 TEXT,
+            eval_1 INTEGER NOT NULL, eval_2 INTEGER NOT NULL, eval_3 INTEGER NOT NULL,
+            publication_decision TEXT NOT NULL,
+            justification TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(work_id, expert_id),
+            FOREIGN KEY (work_id) REFERENCES works(id),
+            FOREIGN KEY (expert_id) REFERENCES users(id)
+        )
+    `);
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS expert_assessments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            work_id INTEGER NOT NULL,
+            expert_id INTEGER NOT NULL,
+            contestant_name TEXT NOT NULL,
+            criteria_1 TEXT NOT NULL, criteria_2 TEXT NOT NULL,
+            criteria_3 TEXT NOT NULL, criteria_4 TEXT NOT NULL,
+            criteria_5 TEXT NOT NULL, criteria_6 TEXT NOT NULL,
+            criteria_7 TEXT NOT NULL, criteria_8 TEXT NOT NULL,
+            criteria_9 TEXT NOT NULL, criteria_10 TEXT NOT NULL,
+            criteria_11 TEXT NOT NULL,
+            resultativity INTEGER DEFAULT 0,
+            operationality INTEGER DEFAULT 0,
+            resource_intensity INTEGER DEFAULT 0,
+            general_conclusion TEXT NOT NULL,
+            commission_member TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(work_id, expert_id),
+            FOREIGN KEY (work_id) REFERENCES works(id),
+            FOREIGN KEY (expert_id) REFERENCES users(id)
+        )
+    `);
+    console.log('✅ База данных и таблицы готовы');
+};
+initDb();
+
+// ---- Обёртки для БД (прямой доступ, без лишних Promise) ----
+// Для простоты используем синхронные методы better-sqlite3, они быстрые и не блокируют event loop.
+// В отличие от sql.js, они не требуют асинхронности.
+const dbGet = (sql, params = []) => db.prepare(sql).get(...params);
+const dbAll = (sql, params = []) => db.prepare(sql).all(...params);
+const dbRun = (sql, params = []) => {
+    const info = db.prepare(sql).run(...params);
+    return { lastID: Number(info.lastInsertRowid), changes: Number(info.changes) };
 };
 
-const dbAll = async (sql, params = []) => {
-    const db = await dbReady;
-    const stmt = db.prepare(sql);
-    stmt.bind(params);
-    const rows = [];
-    while (stmt.step()) rows.push(stmt.getAsObject());
-    stmt.free();
-    return rows;
-};
+// ---- Express настройки ----
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-const dbRun = async (sql, params = []) => {
-    const db = await dbReady;
-    db.run(sql, params);
-    const [info] = db.exec('SELECT last_insert_rowid() AS id, changes() AS changes');
-    const lastID = info ? Number(info.values[0][0]) : null;
-    const changes = info ? Number(info.values[0][1]) : 0;
-    persistDb(db); // сохраняем базу на диск сразу после любой записи
-    return { lastID, changes };
-};
-
-// Оборачивает async-обработчик, чтобы ошибки уходили в централизованный middleware
-const asyncHandler = (fn) => (req, res, next) => fn(req, res, next).catch(next);
-
-// ----- СЛУЖЕБНЫЕ МАРШРУТЫ -----
-app.get('/', (req, res) => res.json({ message: 'Привет! Сервер работает!' }));
-
-app.get('/info', (req, res) => res.json({
-    name: 'Мой Express.js сервер',
-    version: '0.0.1',
-    status: 'работает'
+// Раздача статики с кэшированием (для продакшена)
+app.use(express.static(path.join(__dirname, 'frontend'), {
+    maxAge: '1d',
+    setHeaders: (res, path) => {
+        if (path.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        }
+    }
 }));
 
-app.get('/hello/:name', (req, res) => res.json({ message: `Привет, ${req.params.name}!` }));
+// Секрет для JWT (из переменных окружения)
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+if (JWT_SECRET === 'dev-secret-change-me' && process.env.NODE_ENV === 'production') {
+    console.warn('⚠️ В продакшене используйте реальный JWT_SECRET!');
+}
 
+// ---- Вспомогательные утилиты ----
+const asyncHandler = (fn) => (req, res, next) => fn(req, res, next).catch(next);
+
+// ---- Служебные маршруты ----
+app.get('/', (req, res) => res.json({ message: 'Привет! Сервер работает!' }));
+app.get('/info', (req, res) => res.json({ name: 'Мой Express.js сервер', version: '0.0.1', status: 'работает' }));
+app.get('/hello/:name', (req, res) => res.json({ message: `Привет, ${req.params.name}!` }));
 app.get('/time', (req, res) => {
     const now = new Date();
-    res.json({
-        currentTime: now.toISOString(),
-        date: now.toLocaleDateString('ru-RU'),
-        time: now.toLocaleTimeString('ru-RU')
-    });
+    res.json({ currentTime: now.toISOString(), date: now.toLocaleDateString('ru-RU'), time: now.toLocaleTimeString('ru-RU') });
 });
 
-// ----- MIDDLEWARE АУТЕНТИФИКАЦИИ -----
+// ---- Middleware аутентификации ----
 function authenticate(req, res, next) {
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/, '');
     if (!token) return res.status(401).json({ error: 'Нужен токен авторизации' });
-
     jwt.verify(token, JWT_SECRET, (err, payload) => {
         if (err) return res.status(401).json({ error: 'Токен недействителен или истёк' });
         req.userId = payload.userId;
@@ -88,7 +147,7 @@ function authenticate(req, res, next) {
     });
 }
 
-// ----- РЕГИСТРАЦИЯ И ЛОГИН -----
+// ---- Регистрация и логин (асинхронный bcrypt) ----
 app.post('/auth/register', asyncHandler(async (req, res) => {
     const { email, password, login } = req.body;
     const passwordRepeat = req.body.passwordRepeat || req.body['repeat-password'];
@@ -96,25 +155,23 @@ app.post('/auth/register', asyncHandler(async (req, res) => {
     if (!email || !password || !passwordRepeat || !login) {
         return res.status(400).send('Все поля обязательны');
     }
-    if (password !== passwordRepeat) {
-        return res.status(400).send('Пароли не совпадают');
-    }
-    if (password.length < 6) {
-        return res.status(400).send('Пароль должен быть не менее 6 символов');
-    }
+    if (password !== passwordRepeat) return res.status(400).send('Пароли не совпадают');
+    if (password.length < 6) return res.status(400).send('Пароль должен быть не менее 6 символов');
 
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedLogin = login.trim();
 
-    const [emailTaken, loginTaken] = await Promise.all([
-        dbGet('SELECT id FROM users WHERE email = ?', [normalizedEmail]),
-        dbGet('SELECT id FROM users WHERE login = ?', [normalizedLogin])
-    ]);
+    // Проверка существующих пользователей (два запроса вместо Promise.all, но это быстрее)
+    const emailTaken = dbGet('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
     if (emailTaken) return res.status(409).send('Email уже зарегистрирован');
+
+    const loginTaken = dbGet('SELECT id FROM users WHERE login = ?', [normalizedLogin]);
     if (loginTaken) return res.status(409).send('Логин уже занят');
 
-    const passwordHash = bcrypt.hashSync(password, 10);
-    const { lastID } = await dbRun(
+    // Асинхронное хеширование пароля (не блокирует цикл)
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const { lastID } = dbRun(
         'INSERT INTO users (email, password_hash, login) VALUES (?, ?, ?)',
         [normalizedEmail, passwordHash, normalizedLogin]
     );
@@ -131,22 +188,24 @@ app.post('/auth/login', asyncHandler(async (req, res) => {
         return res.status(400).json({ error: 'Укажи логин/email и пароль' });
     }
 
-    const user = await dbGet(
+    const user = dbGet(
         'SELECT id, email, login, password_hash, role FROM users WHERE email = ? OR login = ?',
         [login, login]
     );
 
-    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-        return res.status(401).json({ error: 'Неверный логин/email или пароль' });
-    }
+    if (!user) return res.status(401).json({ error: 'Неверный логин/email или пароль' });
+
+    // Асинхронное сравнение пароля
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (!match) return res.status(401).json({ error: 'Неверный логин/email или пароль' });
 
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user.id, email: user.email, login: user.login, role: user.role } });
 }));
 
-// ----- ПРОФИЛЬ -----
+// ---- Профиль ----
 app.get('/me', authenticate, asyncHandler(async (req, res) => {
-    const user = await dbGet(
+    const user = dbGet(
         'SELECT id, email, login, role, created_at FROM users WHERE id = ?',
         [req.userId]
     );
@@ -154,14 +213,8 @@ app.get('/me', authenticate, asyncHandler(async (req, res) => {
     res.json(user);
 }));
 
-// ----- ЗАГРУЗКА ФАЙЛОВ (multer) -----
+// ---- Загрузка файлов (multer) ----
 const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
-// В Amvera постоянное хранилище примонтировано в /data (см. amvera.yml -> run.persistenceMount).
-// Файлы, сохранённые не в /data, будут потеряны при каждом перезапуске/пересборке контейнера.
-// Локально (когда /data не существует) используем папку рядом с проектом — для разработки.
-const PERSIST_DIR = fs.existsSync('/data') ? '/data' : path.join(__dirname, 'data');
-fs.mkdirSync(PERSIST_DIR, { recursive: true });
-
 const uploadDir = path.join(PERSIST_DIR, 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -173,14 +226,13 @@ const upload = multer({
             cb(null, unique + path.extname(file.originalname));
         }
     }),
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+    limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         const isAllowed = ALLOWED_EXTENSIONS.includes(path.extname(file.originalname).toLowerCase());
         cb(isAllowed ? null : new Error('Разрешены только PDF, DOC, DOCX'), isAllowed);
     }
 });
 
-// Загрузка новой работы
 app.post('/api/works', authenticate, upload.single('file'), asyncHandler(async (req, res) => {
     const { title, type } = req.body;
     const file = req.file;
@@ -189,10 +241,9 @@ app.post('/api/works', authenticate, upload.single('file'), asyncHandler(async (
         return res.status(400).json({ error: 'Все поля обязательны' });
     }
 
-    // Перекодируем имя файла из Windows-1251 в UTF-8
     const originalName = iconv.decode(Buffer.from(file.originalname, 'binary'), 'win1251');
 
-    const { lastID } = await dbRun(
+    const { lastID } = dbRun(
         `INSERT INTO works (user_id, title, type, file_path, original_name) VALUES (?, ?, ?, ?, ?)`,
         [req.userId, title, type, file.path, originalName]
     );
@@ -200,28 +251,23 @@ app.post('/api/works', authenticate, upload.single('file'), asyncHandler(async (
     res.status(201).json({ id: lastID, title, type, file_path: file.path, original_name: originalName });
 }));
 
-// Скачивание файла по ID работы
 app.get('/api/works/:id/file', authenticate, asyncHandler(async (req, res) => {
-    const row = await dbGet('SELECT file_path, original_name FROM works WHERE id = ?', [req.params.id]);
+    const row = dbGet('SELECT file_path, original_name FROM works WHERE id = ?', [req.params.id]);
     if (!row) return res.status(404).json({ error: 'Файл не найден' });
     if (!fs.existsSync(row.file_path)) return res.status(404).json({ error: 'Файл отсутствует на сервере' });
     res.download(row.file_path, row.original_name);
 }));
 
-// Список работ текущего пользователя
 app.get('/api/works', authenticate, asyncHandler(async (req, res) => {
-    const rows = await dbAll(
+    const rows = dbAll(
         'SELECT id, title, type, original_name, created_at FROM works WHERE user_id = ? ORDER BY created_at DESC',
         [req.userId]
     );
     res.json(rows);
 }));
 
-// Список всех работ (для авторизованных пользователей)
-// Для каждой работы дополнительно указываем, оценил ли её уже текущий пользователь —
-// фронтенд использует это, чтобы показать либо кнопку "Оценить", либо "Посмотреть результаты".
 app.get('/api/works/all', authenticate, asyncHandler(async (req, res) => {
-    const rows = await dbAll(`
+    const rows = dbAll(`
         SELECT w.id, w.title, w.type, w.original_name, w.created_at, w.user_id, u.login AS author,
             CASE
                 WHEN w.type = 'article' THEN EXISTS(SELECT 1 FROM reviews r WHERE r.work_id = w.id AND r.expert_id = ?)
@@ -234,10 +280,8 @@ app.get('/api/works/all', authenticate, asyncHandler(async (req, res) => {
     res.json(rows.map(r => ({ ...r, reviewed_by_me: !!r.reviewed_by_me })));
 }));
 
-// Работы, доступные текущему пользователю для оценки:
-// не свои и ещё не оценённые им работы.
 app.get('/api/works/available', authenticate, asyncHandler(async (req, res) => {
-    const rows = await dbAll(`
+    const rows = dbAll(`
         SELECT w.id, w.title, w.type, w.original_name, w.created_at, u.login AS author
         FROM works w
         JOIN users u ON w.user_id = u.id
@@ -249,9 +293,8 @@ app.get('/api/works/available', authenticate, asyncHandler(async (req, res) => {
     res.json(rows);
 }));
 
-// Базовая информация об одной работе (используется формами оценки для заголовка и проверки типа)
 app.get('/api/works/:id', authenticate, asyncHandler(async (req, res) => {
-    const work = await dbGet(
+    const work = dbGet(
         'SELECT id, title, type, original_name, user_id, created_at FROM works WHERE id = ?',
         [req.params.id]
     );
@@ -259,15 +302,13 @@ app.get('/api/works/:id', authenticate, asyncHandler(async (req, res) => {
     res.json(work);
 }));
 
-// Статус оценки конкретной работы текущим пользователем
 app.get('/api/works/:id/evaluation-status', authenticate, asyncHandler(async (req, res) => {
-    const work = await dbGet('SELECT id, type, user_id FROM works WHERE id = ?', [req.params.id]);
+    const work = dbGet('SELECT id, type, user_id FROM works WHERE id = ?', [req.params.id]);
     if (!work) return res.status(404).json({ error: 'Работа не найдена' });
 
     const table = work.type === 'article' ? 'reviews' : 'expert_assessments';
-    const idColumn = work.type === 'article' ? 'work_id' : 'work_id';
-    const existing = await dbGet(
-        `SELECT id FROM ${table} WHERE ${idColumn} = ? AND expert_id = ?`,
+    const existing = dbGet(
+        `SELECT id FROM ${table} WHERE work_id = ? AND expert_id = ?`,
         [work.id, req.userId]
     );
 
@@ -279,7 +320,7 @@ app.get('/api/works/:id/evaluation-status', authenticate, asyncHandler(async (re
     });
 }));
 
-// Сохранение рецензии на научную статью (форма form.html)
+// Сохранение рецензии
 app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
     const {
         work_id, profile_match, article_type,
@@ -291,14 +332,12 @@ app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
 
     if (!work_id) return res.status(400).json({ error: 'Не указана работа (work_id)' });
 
-    const work = await dbGet('SELECT id, type, user_id FROM works WHERE id = ?', [work_id]);
+    const work = dbGet('SELECT id, type, user_id FROM works WHERE id = ?', [work_id]);
     if (!work) return res.status(404).json({ error: 'Работа не найдена' });
     if (work.type !== 'article') return res.status(400).json({ error: 'Эта форма предназначена только для научных статей' });
     if (work.user_id === req.userId) return res.status(403).json({ error: 'Нельзя оценивать собственную работу' });
 
-    const requiredFields = {
-        profile_match, article_type, eval_1, eval_2, eval_3, publication_decision
-    };
+    const requiredFields = { profile_match, article_type, eval_1, eval_2, eval_3, publication_decision };
     for (const [key, value] of Object.entries(requiredFields)) {
         if (value === undefined || value === null || value === '') {
             return res.status(400).json({ error: `Поле "${key}" обязательно для заполнения` });
@@ -306,7 +345,7 @@ app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
     }
 
     try {
-        const { lastID } = await dbRun(
+        const { lastID } = dbRun(
             `INSERT INTO reviews (
                 work_id, expert_id, profile_match, article_type,
                 quality_1, quality_2, quality_3, quality_4, quality_5,
@@ -330,7 +369,7 @@ app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
     }
 }));
 
-// Сохранение экспертного листа по конкурсной работе (форма expert-assessment.html)
+// Сохранение экспертного листа
 app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) => {
     const {
         work_id, contestant_name,
@@ -342,7 +381,7 @@ app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) =
 
     if (!work_id) return res.status(400).json({ error: 'Не указана работа (work_id)' });
 
-    const work = await dbGet('SELECT id, type, user_id FROM works WHERE id = ?', [work_id]);
+    const work = dbGet('SELECT id, type, user_id FROM works WHERE id = ?', [work_id]);
     if (!work) return res.status(404).json({ error: 'Работа не найдена' });
     if (work.type !== 'competition') return res.status(400).json({ error: 'Эта форма предназначена только для конкурсных работ' });
     if (work.user_id === req.userId) return res.status(403).json({ error: 'Нельзя оценивать собственную работу' });
@@ -360,7 +399,7 @@ app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) =
     }
 
     try {
-        const { lastID } = await dbRun(
+        const { lastID } = dbRun(
             `INSERT INTO expert_assessments (
                 work_id, expert_id, contestant_name,
                 criteria_1, criteria_2, criteria_3, criteria_4, criteria_5,
@@ -385,17 +424,16 @@ app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) =
     }
 }));
 
-// Результаты оценки работы с базовым анализом.
-// Доступно автору работы и всем, кто уже оставил по ней оценку.
+// Результаты оценки
 app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) => {
-    const work = await dbGet(
+    const work = dbGet(
         'SELECT w.id, w.title, w.type, w.original_name, w.user_id, u.login AS author FROM works w JOIN users u ON w.user_id = u.id WHERE w.id = ?',
         [req.params.id]
     );
     if (!work) return res.status(404).json({ error: 'Работа не найдена' });
 
     if (work.type === 'article') {
-        const rows = await dbAll(`
+        const rows = dbAll(`
             SELECT r.*, u.login AS expert_login FROM reviews r
             JOIN users u ON r.expert_id = u.id
             WHERE r.work_id = ?
@@ -441,7 +479,7 @@ app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) =>
             }))
         });
     } else {
-        const rows = await dbAll(`
+        const rows = dbAll(`
             SELECT ea.*, u.login AS expert_login FROM expert_assessments ea
             JOIN users u ON ea.expert_id = u.id
             WHERE ea.work_id = ?
@@ -487,43 +525,34 @@ app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) =>
     }
 }));
 
-// ----- ДЛЯ ОТЛАДКИ (можно удалить) -----
+// Отладка
 app.get('/debug/users', asyncHandler(async (req, res) => {
-    const rows = await dbAll('SELECT id, email, login, role, created_at FROM users');
+    const rows = dbAll('SELECT id, email, login, role, created_at FROM users');
     res.json(rows);
 }));
 
-// ----- ЗАПУСК СЕРВЕРА -----
-// Amvera прокидывает трафик на порт, указанный в amvera.yml -> run.containerPort.
-// Он должен совпадать с тем портом, который слушает приложение — используем переменную окружения PORT,
-// которую Amvera передаёт автоматически, с запасным значением для локальной разработки.
-// Amvera прокидывает трафик на порт, указанный в amvera.yml -> run.containerPort.
-// Раздел «Домены» в личном кабинете Amvera явно указывает: внутренний домен должен
-// слушать порт 80 — используем его как запасное значение по умолчанию.
-// Слушаем явно на 0.0.0.0, а не на localhost — иначе трафик снаружи контейнера не достучится.
+// ---- Запуск сервера ----
 const PORT = process.env.PORT || 80;
-app.listen(PORT, '0.0.0.0', () => console.log(`Сервер запущен и работает на порту ${PORT} (host 0.0.0.0)`));
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Сервер запущен на порту ${PORT} (0.0.0.0)`);
+    console.log(`📁 База данных: ${DB_PATH}`);
+    console.log(`📂 Загрузки: ${uploadDir}`);
+});
 
-// ----- ЗАКРЫТИЕ БАЗЫ ПРИ ОСТАНОВКЕ -----
-async function shutdown() {
-    console.log('Останавливаем сервер... ⛔');
-    try {
-        const db = await dbReady;
-        persistDb(db);
-        db.close();
-        console.log('База закрыта. До встречи! 👋');
-        process.exit(0);
-    } catch (err) {
-        console.error('Не получилось закрыть базу:', err.message);
-        process.exit(1);
-    }
-}
+// ---- Корректное закрытие БД ----
+process.on('SIGINT', () => {
+    console.log('⛔ Закрываем соединение с БД...');
+    db.close();
+    process.exit(0);
+});
+process.on('SIGTERM', () => {
+    console.log('⛔ Закрываем соединение с БД...');
+    db.close();
+    process.exit(0);
+});
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
-
-// ----- ЦЕНТРАЛИЗОВАННЫЙ ОБРАБОТЧИК ОШИБОК (в конце) -----
+// ---- Обработчик ошибок ----
 app.use((err, req, res, next) => {
-    console.error('Unexpected error:', err);
+    console.error('❌ Ошибка:', err);
     res.status(500).json({ error: 'Упс! Что-то пошло не так. Попробуй ещё раз.' });
 });
