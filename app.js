@@ -11,6 +11,10 @@ const db = require('./database/db');
 
 const app = express();
 
+app.get('/ping', (req, res) => {
+    res.send('pong');
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '/frontend/index.html')));
