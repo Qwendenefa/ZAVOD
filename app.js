@@ -11,6 +11,43 @@ const db = require('./database/db');
 
 const app = express();
 
+// ----- ДИАГНОСТИКА: поиск папки frontend -----
+console.log('__dirname =', __dirname);
+console.log('process.cwd() =', process.cwd());
+
+// Проверим несколько возможных путей
+const testPaths = [
+    path.join(__dirname, 'frontend'),
+    path.join(__dirname, '../frontend'),
+    '/frontend',
+    path.join(process.cwd(), 'frontend'),
+    '/app/frontend'
+];
+
+console.log('Проверяем пути:');
+for (const p of testPaths) {
+    const exists = fs.existsSync(p);
+    let files = [];
+    if (exists) {
+        try { files = fs.readdirSync(p); } catch(e) { files = ['ошибка чтения']; }
+        console.log(`  ${p} -> ${exists ? '✅' : '❌'} ${exists ? `(файлы: ${files.join(', ')})` : ''}`);
+    } else {
+        console.log(`  ${p} -> ❌`);
+    }
+}
+
+// Если папка найдена, используем её; иначе раздаём статику из корня (как запасной вариант)
+let frontendPath = testPaths.find(p => fs.existsSync(p));
+if (frontendPath) {
+    app.use(express.static(frontendPath));
+    console.log(`✅ Статика раздаётся из: ${frontendPath}`);
+} else {
+    console.error('❌ Папка frontend не найдена!');
+    // Временно раздаём корень, чтобы увидеть файлы
+    app.use(express.static('/'));
+    console.log('⚠️ Временно раздаётся корень /');
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'frontend')));
