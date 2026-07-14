@@ -1,21 +1,23 @@
-// db.js — слой доступа к SQLite через встроенный модуль Node.js `node:sqlite`.
-// Никаких внешних npm-пакетов и нативных бинарников — модуль встроен прямо в Node,
-// поэтому не зависит от версии glibc на сервере (в отличие от пакета sqlite3).
-const { DatabaseSync } = require('node:sqlite');
+// db.js — слой доступа к SQLite через библиотеку better-sqlite3
+const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
 // В Amvera только папка /data (постоянное хранилище) переживает перезапуск/пересборку контейнера.
 // Если хранить db.sqlite рядом с кодом (в Code/Artifacts), база будет обнуляться при каждом деплое.
-// Локально (там, где /data нет) база сохраняется рядом с проектом — для удобства разработки.
+// Локально (там, где /data нет) база сохраняется в папке data/ рядом с проектом — для удобства разработки.
 const PERSIST_DIR = fs.existsSync('/data') ? '/data' : path.join(__dirname, '..', 'data');
 fs.mkdirSync(PERSIST_DIR, { recursive: true });
 
-const db = new DatabaseSync(path.join(PERSIST_DIR, 'db.sqlite'));
+// Создаём подключение к БД с правильным путём
+const db = new Database(path.join(PERSIST_DIR, 'db.sqlite'));
 
+// Включаем поддержку внешних ключей и кодировку
+db.exec('PRAGMA foreign_keys = ON;');
 db.exec('PRAGMA encoding = "UTF-8";');
 console.log('Кодировка БД установлена на UTF-8');
 
+// Создаём таблицы
 db.exec(`
   CREATE TABLE IF NOT EXISTS users(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,9 +44,6 @@ db.exec(`
 `);
 console.log('Таблица works готова');
 
-// Таблица рецензий на научные статьи (форма form.html)
-// Один пользователь может оценить конкретную работу только один раз —
-// это обеспечивается ограничением UNIQUE(work_id, expert_id).
 db.exec(`
   CREATE TABLE IF NOT EXISTS reviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +73,6 @@ db.exec(`
 `);
 console.log('Таблица reviews готова');
 
-// Таблица для конкурсных работ (форма expert-assessment.html)
 db.exec(`
   CREATE TABLE IF NOT EXISTS expert_assessments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

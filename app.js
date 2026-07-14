@@ -13,7 +13,7 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(express.static(path.join(__dirname, '/frontend')));
 
 // Секрет для JWT (в реальном проекте вынести в .env)
 // В проде задайте JWT_SECRET через «Переменные и секреты» в Amvera — не храните секрет в коде.
@@ -474,7 +474,7 @@ app.get('/debug/users', asyncHandler(async (req, res) => {
 // Amvera прокидывает трафик на порт, указанный в amvera.yml -> run.containerPort.
 // Он должен совпадать с тем портом, который слушает приложение — используем переменную окружения PORT,
 // которую Amvera передаёт автоматически, с запасным значением для локальной разработки.
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 80;
 app.listen(PORT, () => console.log(`Сервер запущен и работает на порту ${PORT}`));
 
 // ----- ЗАКРЫТИЕ БАЗЫ ПРИ ОСТАНОВКЕ -----
