@@ -144,7 +144,13 @@
 
       const container = document.getElementById('worksContainer');
 
-      // Загружаем список экспертов для выпадающих списков
+      // Функция для красивого отображения типа
+      function getTypeName(type) {
+        return type === 'article' ? 'Научная статья' :
+               type === 'competition' ? 'Конкурсная работа' :
+               type;
+      }
+
       let experts = [];
 
       function loadExperts() {
@@ -176,7 +182,6 @@
       }
 
       function renderWorks(works) {
-        // Группируем по статусу
         const pending = works.filter(w => w.status === 'pending');
         const assigned = works.filter(w => w.status === 'assigned');
         const reviewed = works.filter(w => w.status === 'reviewed');
@@ -224,18 +229,14 @@
 
         container.innerHTML = html;
 
-        // Навешиваем обработчики на формы назначения
         document.querySelectorAll('.assign-form').forEach(form => {
           form.addEventListener('submit', handleAssign);
         });
-
-        // Навешиваем обработчики на кнопки удаления
         document.querySelectorAll('.delete-btn').forEach(btn => {
           btn.addEventListener('click', handleDelete);
         });
       }
 
-      // Построение карточки работы
       function buildWorkCard(work, status) {
         const statusClass = {
           'pending': 'status-pending',
@@ -248,6 +249,9 @@
           'assigned': 'Назначена',
           'reviewed': 'Оценена'
         };
+
+        // Используем функцию для красивого отображения типа
+        const typeDisplay = getTypeName(work.type);
 
         let actionsHtml = '';
 
@@ -286,14 +290,13 @@
           `;
         }
 
-        // Кнопка удаления доступна для всех статусов
         const deleteBtnHtml = `<button class="delete-btn" data-work-id="${work.id}">🗑️ Удалить</button>`;
 
         return `
           <div class="work-item" data-id="${work.id}">
             <h4>${work.title}</h4>
             <div class="meta">
-              <span>📂 Тип: ${work.type}</span>
+              <span>📂 Тип: ${typeDisplay}</span>
               <span>👤 Автор: ${work.author_name || 'неизвестен'}</span>
               <span>📅 ${new Date(work.created_at).toLocaleDateString()}</span>
               <span class="status-badge ${statusClass}">${statusLabels[status]}</span>
@@ -306,7 +309,6 @@
         `;
       }
 
-      // Обработчик назначения / переназначения
       async function handleAssign(e) {
         e.preventDefault();
         const form = e.target;
@@ -331,14 +333,12 @@
             alert('Ошибка: ' + (err.error || 'Не удалось назначить'));
             return;
           }
-          // Перезагружаем список
           loadWorks();
         } catch (err) {
           alert('Ошибка соединения: ' + err.message);
         }
       }
 
-      // Обработчик удаления работы
       async function handleDelete(e) {
         const workId = e.target.dataset.workId;
         if (!confirm('Вы уверены, что хотите удалить эту работу и все связанные с ней данные (файл, рецензии, оценки)?')) {
@@ -357,14 +357,12 @@
             alert('Ошибка: ' + (err.error || 'Не удалось удалить работу'));
             return;
           }
-          // Перезагружаем список
           loadWorks();
         } catch (err) {
           alert('Ошибка соединения: ' + err.message);
         }
       }
 
-      // Инициализация
       loadExperts().then(() => loadWorks());
     })();
   </script>
