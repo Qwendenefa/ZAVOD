@@ -353,12 +353,11 @@
         return;
       }
 
-      // ========== 1. НАВИГАЦИЯ (шапка) ==========
+      // ========== 1. НАВИГАЦИЯ (шапка) — изменено ==========
       const navMenu = document.getElementById('navMenu');
       function buildNav() {
         navMenu.innerHTML = `
-          <li><a href="index.html">Главная</a></li>
-          <li><a href="dashboard.html">Кабинет</a></li>
+          <li><a href="dashboard.html">Личный кабинет</a></li>
           <li><a href="#" id="logoutLink">Выйти</a></li>
         `;
         document.getElementById('logoutLink')?.addEventListener('click', (e) => {
@@ -404,7 +403,6 @@
       // ========== 3. БЫСТРЫЕ ДЕЙСТВИЯ (в зависимости от роли) ==========
       function buildActions(role) {
         const actionsContainer = document.getElementById('dashboardActions');
-        // Общие для всех кнопки
         let html = `
           <a href="upload.html" class="action-btn primary">
             <span class="action-icon">📤</span> Загрузить работу
@@ -413,8 +411,6 @@
             <span class="action-icon">📚</span> Мои работы
           </a>
         `;
-
-        // Дополнительная кнопка для эксперта или админа
         if (role === 'admin') {
           html += `
             <a href="admin-works.html" class="action-btn">
@@ -428,8 +424,6 @@
             </a>
           `;
         }
-        // Для автора больше ничего не добавляем
-
         actionsContainer.innerHTML = html;
       }
 
@@ -469,7 +463,6 @@
         console.error(err);
         document.querySelector('.dashboard-header').innerHTML +=
           `<div style="color:red; margin-top:10px;">Ошибка загрузки данных</div>`;
-        // По умолчанию показываем кнопки для автора
         buildActions('author');
       });
 

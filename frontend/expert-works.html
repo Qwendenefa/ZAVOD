@@ -6,6 +6,7 @@
   <title>Мои назначенные работы — Экспертум</title>
   <link rel="stylesheet" href="index.css">
   <style>
+    /* стили остаются те же, что и раньше */
     body { font-family: 'Work Sans', sans-serif; background: #f8fafc; margin: 0; padding: 0; }
     .expert-container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
     .page-title { font-size: 26px; font-weight: 600; color: #035680; margin-bottom: 25px; border-bottom: 2px solid #007cba; padding-bottom: 10px; }
@@ -50,10 +51,9 @@
       const token = localStorage.getItem('token');
       if (!token) { window.location.href = 'login.html'; return; }
 
-      // Навигация
+      // ========== ИЗМЕНЕННАЯ НАВИГАЦИЯ ==========
       document.getElementById('navMenu').innerHTML = `
-        <li><a href="index.html">Главная</a></li>
-        <li><a href="dashboard.html">Кабинет</a></li>
+        <li><a href="dashboard.html">Личный кабинет</a></li>
         <li><a href="#" id="logoutLink">Выйти</a></li>
       `;
       document.getElementById('logoutLink')?.addEventListener('click', (e) => {
@@ -117,8 +117,6 @@
           })
           .then(works => {
             if (!works) return;
-            // Логируем статусы для отладки
-            console.log('Получены работы:', works.map(w => ({ id: w.id, title: w.title, status: w.status })));
             renderWorks(works);
           })
           .catch(err => {
@@ -137,16 +135,13 @@
         works.forEach(work => {
           const typeDisplay = getTypeName(work.type);
           const dateFormatted = formatDate(work.created_at);
-          // Явно приводим статус к нижнему регистру для надёжности
-          const status = (work.status || '').toLowerCase();
-          const isReviewed = status === 'reviewed';
+          // Используем уже существующее поле from сервера
+          const isEvaluated = work.already_evaluated === 1;
 
           let actionBtn = '';
-          if (isReviewed) {
-            // Если оценена – ссылка на результаты
+          if (isEvaluated) {
             actionBtn = `<a href="results.html?workId=${work.id}" class="btn btn-results">📊 Посмотреть результаты</a>`;
           } else {
-            // Иначе – ссылка на форму оценки
             const evaluateUrl = work.type === 'competition'
               ? `expert-assessment.html?workId=${work.id}`
               : `form.html?workId=${work.id}`;
@@ -160,7 +155,7 @@
                 <div class="work-meta">
                   <span class="type-badge">${typeDisplay}</span>
                   <span class="date">${dateFormatted}</span>
-                  <span style="font-size:12px; color:#999;">Статус: ${status}</span>
+                  <span style="font-size:12px; color:#999;">Статус: ${work.status}</span>
                 </div>
               </div>
               <div class="work-actions">

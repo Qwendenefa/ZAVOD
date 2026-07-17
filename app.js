@@ -702,37 +702,59 @@ app.delete('/admin/works/:id', authenticate, requireAdmin, asyncHandler(async (r
 
 // =================== ЭКСПЕРТ ===================
 
+// ======== ОБНОВЛЁННЫЙ ЭНДПОИНТ /expert/works с already_evaluated ========
 app.get('/expert/works', authenticate, requireExpert, asyncHandler(async (req, res) => {
   const userId = req.userId;
   const works = dbAll(`
     SELECT w.*, 
-           u.login as author_name
+           u.login as author_name,
+           CASE 
+             WHEN w.type = 'competition' AND EXISTS (SELECT 1 FROM expert_assessments ea WHERE ea.work_id = w.id AND ea.expert_id = ?) THEN 1
+             WHEN w.type = 'article' AND EXISTS (SELECT 1 FROM reviews r WHERE r.work_id = w.id AND r.expert_id = ?) THEN 1
+             ELSE 0
+           END AS already_evaluated
     FROM works w
     LEFT JOIN users u ON w.user_id = u.id
     WHERE w.assigned_expert_id = ? AND w.status IN ('assigned', 'reviewed')
     ORDER BY w.created_at DESC
-  `, [userId]);
+  `, [userId, userId, userId]);
   res.json(works);
 }));
+// ======================================================================
 
+// ======== ИСПРАВЛЕННЫЙ ЭНДПОИНТ С ЛОГИРОВАНИЕМ ========
 app.put('/expert/works/:id/review', authenticate, requireExpert, asyncHandler(async (req, res) => {
   const workId = req.params.id;
   const userId = req.userId;
   const { rating, comment } = req.body;
 
+  console.log(`🔍 Попытка оценки работы ${workId} экспертом ${userId}, rating=${rating}, comment=${comment}`);
+
+  // Проверяем, что работа назначена этому эксперту и ещё не оценена
   const work = dbGet('SELECT * FROM works WHERE id = ? AND assigned_expert_id = ? AND status = \'assigned\'', [workId, userId]);
   if (!work) {
+    console.log(`❌ Работа ${workId} не найдена или уже оценена`);
     return res.status(403).json({ error: 'Работа не назначена вам или уже оценена' });
   }
 
+  // Обновляем статус, рейтинг и комментарий
   const stmt = db.prepare('UPDATE works SET status = \'reviewed\', rating = ?, review_comment = ? WHERE id = ?');
   const result = stmt.run(rating || null, comment || null, workId);
+
+  console.log(`✅ Результат обновления: изменено строк = ${result.changes}`);
+
   if (result.changes === 0) {
+    console.log(`⚠️ Не удалось обновить работу ${workId}`);
     return res.status(404).json({ error: 'Работа не найдена' });
   }
 
+  // Проверяем, что статус действительно изменился
+  const updatedWork = dbGet('SELECT id, status FROM works WHERE id = ?', [workId]);
+  console.log(`📌 После обновления статус работы ${workId}: ${updatedWork?.status}`);
+
   res.json({ message: 'Оценка сохранена', workId });
 }));
+// ===================================================
 
 // ---- Получение списка пользователей (с фильтром) ----
 app.get('/api/users', authenticate, asyncHandler(async (req, res) => {
