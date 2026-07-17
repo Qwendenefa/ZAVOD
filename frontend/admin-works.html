@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Администрирование работ — Экспертум</title>
+  <link rel="stylesheet" href="index.css">
+  <style>
+    .admin-container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+    .work-item { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
+    .work-item .meta { color: #666; font-size: 14px; }
+    .work-item .actions { margin-top: 10px; }
+    .assign-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .assign-form select { padding: 6px 12px; border-radius: 4px; border: 1px solid #ccc; }
+    .assign-form button { background: #007cba; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
+    .assign-form button:hover { background: #005f8a; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; }
+    .status-pending { background: #ffc107; color: #000; }
+    .status-assigned { background: #17a2b8; color: #fff; }
+    .status-reviewed { background: #28a745; color: #fff; }
+    .error-msg { color: red; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="navigation">
+      <h1 class="logo"><a href="index.html">Экспертум</a></h1>
+      <nav>
+        <ul id="navMenu"></ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="admin-container">
+      <h2>Панель администратора — распределение работ</h2>
+      <div id="worksList"></div>
+    </div>
+  </main>
+
+  <footer>...</footer>
+
+  <script>
+    (function() {
+      const token = localStorage.getItem('token');
+      if (!token) { window.location.href = 'login.html'; return; }
+
+      // Навигация
+      document.getElementById('navMenu').innerHTML = `
+        <li><a href="index.html">Главная</a></li>
+        <li><a href="dashboard.html">Кабинет</a></li>
+        <li><a href="#" id="logoutLink">Выйти</a></li>
+      `;
+      document.getElementById('logoutLink')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'index.html';
+      });
+
+      const worksList = document.getElementById('worksList');
+
+      // Загружаем список экспертов для выпадающего списка
+      let experts = [];
+
+      function loadExperts() {
+        fetch('/api/users?role=expert', { headers: { 'Authorization': `Bearer ${token}` } })
+          .then(res => res.json())
+          .then(data => { experts = data; })
+          .catch(() => experts = []);
+      }
+
+      function loadWorks() {
+        fetch('/admin/works', { headers: { 'Authorization': `Bearer ${token}` } })
+          .then(res => {
+            if (res.status === 403) {
+              worksList.innerHTML = '<p class="error-msg">У вас нет прав администратора.</p>';
+              return;
+            }
+            return res.json();
+          })
+          .then(works => {
+            if (!works) return;
+            renderWorks(works);
+          })
+          .catch(err => {
+            worksList.innerHTML = '<p class="error-msg">Ошибка загрузки работ</p>';
+            console.error(err);
+          });
+      }
+
+      function renderWorks(works) {
+        if (works.length === 0) {
+          worksList.innerHTML = '<p>Нет загруженных работ.</p>';
+          return;
+        }
+        let html = '';
+        works.forEach(w => {
+          const statusClass = {
+            'pending': 'status-pending',
+            'assigned': 'status-assigned',
+            'reviewed': 'status-reviewed'
+          }[w.status] || '';
+
+          html += `
+            <div class="work-item" data-id="${w.id}">
+              <h4>${w.title}</h4>
+              <div class="meta">
+                Автор: ${w.author_name || 'неизвестен'} | 
+                Статус: <span class="status-badge ${statusClass}">${w.status}</span>
+                ${w.assigned_expert_id ? `| Эксперт: ${w.expert_name || 'назначен'}` : ''}
+              </div>
+              <div class="actions">
+                ${w.status === 'pending' || w.status === 'assigned' ? `
+                  <form class="assign-form" data-work-id="${w.id}">
+                    <select name="expert" required>
+                      <option value="">-- Выберите эксперта --</option>
+                      ${experts.map(e => `<option value="${e.id}" ${w.assigned_expert_id === e.id ? 'selected' : ''}>${e.login}</option>`).join('')}
+                    </select>
+                    <button type="submit">${w.assigned_expert_id ? 'Переназначить' : 'Назначить'}</button>
+                  </form>
+                ` : `<span>Работа уже оценена</span>`}
+              </div>
+            </div>
+          `;
+        });
+        worksList.innerHTML = html;
+
+        // Обработчики форм назначения
+        document.querySelectorAll('.assign-form').forEach(form => {
+          form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const workId = this.dataset.workId;
+            const expertId = this.querySelector('select').value;
+            if (!expertId) { alert('Выберите эксперта'); return; }
+            try {
+              const res = await fetch(`/admin/works/${workId}/assign`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ expertId })
+              });
+              if (!res.ok) {
+                const err = await res.json();
+                alert('Ошибка: ' + (err.error || 'Не удалось назначить'));
+                return;
+              }
+              // Перезагружаем список
+              loadWorks();
+            } catch (err) {
+              alert('Ошибка соединения: ' + err.message);
+            }
+          });
+        });
+      }
+
+      // Инициализация
+      loadExperts();
+      loadWorks();
+
+    })();
+  </script>
+</body>
+</html>

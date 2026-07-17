@@ -11,23 +11,50 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const iconv = require('iconv-lite');
 
-// Используем нативный better-sqlite3 (быстрее, чем sql.js)
+// Используем нативный better-sqlite3
 const Database = require('better-sqlite3');
 
 const app = express();
 
-// ---- Настройка БД (лучше вынести в отдельный файл, но здесь упрощённо) ----
+// ---- Настройка БД ----
 const PERSIST_DIR = fs.existsSync('/data') ? '/data' : path.join(__dirname, 'data');
 fs.mkdirSync(PERSIST_DIR, { recursive: true });
 const DB_PATH = path.join(PERSIST_DIR, 'db.sqlite');
 
-// Открываем БД в режиме WAL для повышения производительности
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 db.pragma('encoding = "UTF-8"');
 
-// Инициализация таблиц (синхронно, один раз при старте)
+// ---- Принудительная миграция для добавления колонок в works ----
+function ensureWorksColumns() {
+    const tableInfo = db.prepare("PRAGMA table_info(works)").all();
+    const columnNames = tableInfo.map(row => row.name);
+    console.log('📋 Существующие колонки в works:', columnNames.join(', '));
+
+    const columnsToAdd = {
+        status: "TEXT DEFAULT 'pending'",
+        assigned_expert_id: "INTEGER REFERENCES users(id)",
+        rating: "INTEGER",
+        review_comment: "TEXT"
+    };
+
+    for (const [col, definition] of Object.entries(columnsToAdd)) {
+        if (!columnNames.includes(col)) {
+            try {
+                db.exec(`ALTER TABLE works ADD COLUMN ${col} ${definition}`);
+                console.log(`✅ Добавлена колонка ${col} в works`);
+            } catch (err) {
+                console.error(`❌ Ошибка добавления колонки ${col}:`, err.message);
+            }
+        }
+    }
+
+    db.exec("CREATE INDEX IF NOT EXISTS idx_works_status ON works(status)");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_works_assigned_expert ON works(assigned_expert_id)");
+}
+
+// Инициализация таблиц
 const initDb = () => {
     db.exec(`
         CREATE TABLE IF NOT EXISTS users(
@@ -39,6 +66,7 @@ const initDb = () => {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     `);
+
     db.exec(`
         CREATE TABLE IF NOT EXISTS works (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,6 +79,9 @@ const initDb = () => {
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     `);
+
+    ensureWorksColumns();
+
     db.exec(`
         CREATE TABLE IF NOT EXISTS reviews (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,6 +101,7 @@ const initDb = () => {
             FOREIGN KEY (expert_id) REFERENCES users(id)
         )
     `);
+
     db.exec(`
         CREATE TABLE IF NOT EXISTS expert_assessments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,13 +125,11 @@ const initDb = () => {
             FOREIGN KEY (expert_id) REFERENCES users(id)
         )
     `);
-    console.log('✅ База данных и таблицы готовы');
+    console.log('✅ База данных и таблицы готовы (с миграцией works)');
 };
 initDb();
 
-// ---- Обёртки для БД (прямой доступ, без лишних Promise) ----
-// Для простоты используем синхронные методы better-sqlite3, они быстрые и не блокируют event loop.
-// В отличие от sql.js, они не требуют асинхронности.
+// ---- Обёртки для БД ----
 const dbGet = (sql, params = []) => db.prepare(sql).get(...params);
 const dbAll = (sql, params = []) => db.prepare(sql).all(...params);
 const dbRun = (sql, params = []) => {
@@ -111,7 +141,6 @@ const dbRun = (sql, params = []) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Раздача статики с кэшированием (для продакшена)
 app.use(express.static(path.join(__dirname, 'frontend'), {
     maxAge: '1d',
     setHeaders: (res, path) => {
@@ -121,13 +150,11 @@ app.use(express.static(path.join(__dirname, 'frontend'), {
     }
 }));
 
-// Секрет для JWT (из переменных окружения)
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 if (JWT_SECRET === 'dev-secret-change-me' && process.env.NODE_ENV === 'production') {
     console.warn('⚠️ В продакшене используйте реальный JWT_SECRET!');
 }
 
-// ---- Вспомогательные утилиты ----
 const asyncHandler = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
 // ---- Служебные маршруты ----
@@ -151,7 +178,7 @@ function authenticate(req, res, next) {
     });
 }
 
-// ---- Регистрация и логин (асинхронный bcrypt) ----
+// ---- Регистрация и логин ----
 app.post('/auth/register', asyncHandler(async (req, res) => {
     const { email, password, login } = req.body;
     const passwordRepeat = req.body.passwordRepeat || req.body['repeat-password'];
@@ -165,14 +192,12 @@ app.post('/auth/register', asyncHandler(async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedLogin = login.trim();
 
-    // Проверка существующих пользователей (два запроса вместо Promise.all, но это быстрее)
     const emailTaken = dbGet('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
     if (emailTaken) return res.status(409).send('Email уже зарегистрирован');
 
     const loginTaken = dbGet('SELECT id FROM users WHERE login = ?', [normalizedLogin]);
     if (loginTaken) return res.status(409).send('Логин уже занят');
 
-    // Асинхронное хеширование пароля (не блокирует цикл)
     const passwordHash = await bcrypt.hash(password, 10);
 
     const { lastID } = dbRun(
@@ -199,7 +224,6 @@ app.post('/auth/login', asyncHandler(async (req, res) => {
 
     if (!user) return res.status(401).json({ error: 'Неверный логин/email или пароль' });
 
-    // Асинхронное сравнение пароля
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) return res.status(401).json({ error: 'Неверный логин/email или пароль' });
 
@@ -217,7 +241,7 @@ app.get('/me', authenticate, asyncHandler(async (req, res) => {
     res.json(user);
 }));
 
-// ---- Загрузка файлов (multer) ----
+// ---- Загрузка файлов ----
 const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
 const uploadDir = path.join(PERSIST_DIR, 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -248,8 +272,9 @@ app.post('/api/works', authenticate, upload.single('file'), asyncHandler(async (
     const originalName = iconv.decode(Buffer.from(file.originalname, 'binary'), 'win1251');
 
     const { lastID } = dbRun(
-        `INSERT INTO works (user_id, title, type, file_path, original_name) VALUES (?, ?, ?, ?, ?)`,
-        [req.userId, title, type, file.path, originalName]
+        `INSERT INTO works (user_id, title, type, file_path, original_name, status)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [req.userId, title, type, file.path, originalName, 'pending']
     );
 
     res.status(201).json({ id: lastID, title, type, file_path: file.path, original_name: originalName });
@@ -324,7 +349,6 @@ app.get('/api/works/:id/evaluation-status', authenticate, asyncHandler(async (re
     });
 }));
 
-// Сохранение рецензии
 app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
     const {
         work_id, profile_match, article_type,
@@ -373,7 +397,6 @@ app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
     }
 }));
 
-// Сохранение экспертного листа
 app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) => {
     const {
         work_id, contestant_name,
@@ -428,7 +451,6 @@ app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) =
     }
 }));
 
-// Результаты оценки
 app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) => {
     const work = dbGet(
         'SELECT w.id, w.title, w.type, w.original_name, w.user_id, u.login AS author FROM works w JOIN users u ON w.user_id = u.id WHERE w.id = ?',
@@ -529,10 +551,151 @@ app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) =>
     }
 }));
 
-// Отладка
 app.get('/debug/users', asyncHandler(async (req, res) => {
     const rows = dbAll('SELECT id, email, login, role, created_at FROM users');
     res.json(rows);
+}));
+
+// ---- Смена роли ----
+app.put('/auth/role', authenticate, asyncHandler(async (req, res) => {
+  const { role } = req.body;
+  const userId = req.userId;
+
+  const allowedRoles = ['author', 'expert', 'admin'];
+  if (!role || !allowedRoles.includes(role)) {
+    return res.status(400).json({ error: 'Недопустимая роль' });
+  }
+
+  const stmt = db.prepare('UPDATE users SET role = ? WHERE id = ?');
+  const result = stmt.run(role, userId);
+
+  if (result.changes === 0) {
+    return res.status(404).json({ error: 'Пользователь не найден' });
+  }
+
+  const newToken = jwt.sign(
+    { userId: userId, role: role },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  const user = dbGet(
+    'SELECT id, email, login, role, created_at FROM users WHERE id = ?',
+    [userId]
+  );
+
+  res.json({
+    token: newToken,
+    user: user
+  });
+}));
+
+// =================== АДМИН: управление работами ===================
+
+const requireAdmin = (req, res, next) => {
+  if (req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Доступ запрещён' });
+  }
+  next();
+};
+
+const requireExpert = (req, res, next) => {
+  if (req.userRole !== 'expert' && req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Доступ запрещён' });
+  }
+  next();
+};
+
+app.get('/admin/works', authenticate, requireAdmin, asyncHandler(async (req, res) => {
+  const works = dbAll(`
+    SELECT w.*, 
+           u.login as author_name, 
+           e.login as expert_name
+    FROM works w
+    LEFT JOIN users u ON w.user_id = u.id
+    LEFT JOIN users e ON w.assigned_expert_id = e.id
+    ORDER BY w.created_at DESC
+  `);
+  res.json(works);
+}));
+
+// ИСПРАВЛЕНО: status = 'assigned' (одинарные кавычки)
+app.put('/admin/works/:id/assign', authenticate, requireAdmin, asyncHandler(async (req, res) => {
+  const workId = req.params.id;
+  const { expertId } = req.body;
+
+  if (!expertId) {
+    return res.status(400).json({ error: 'Не указан эксперт' });
+  }
+
+  const expert = dbGet('SELECT id, role FROM users WHERE id = ? AND role = \'expert\'', [expertId]);
+  if (!expert) {
+    return res.status(400).json({ error: 'Эксперт не найден или не имеет роли "expert"' });
+  }
+
+  const stmt = db.prepare('UPDATE works SET assigned_expert_id = ?, status = \'assigned\' WHERE id = ?');
+  const result = stmt.run(expertId, workId);
+  if (result.changes === 0) {
+    return res.status(404).json({ error: 'Работа не найдена' });
+  }
+
+  const updated = dbGet(`
+    SELECT w.*, u.login as author_name, e.login as expert_name
+    FROM works w
+    LEFT JOIN users u ON w.user_id = u.id
+    LEFT JOIN users e ON w.assigned_expert_id = e.id
+    WHERE w.id = ?
+  `, [workId]);
+  res.json(updated);
+}));
+
+// =================== ЭКСПЕРТ ===================
+
+app.get('/expert/works', authenticate, requireExpert, asyncHandler(async (req, res) => {
+  const userId = req.userId;
+  const works = dbAll(`
+    SELECT w.*, 
+           u.login as author_name
+    FROM works w
+    LEFT JOIN users u ON w.user_id = u.id
+    WHERE w.assigned_expert_id = ? AND w.status IN ('assigned', 'reviewed')
+    ORDER BY w.created_at DESC
+  `, [userId]);
+  res.json(works);
+}));
+
+// ИСПРАВЛЕНО: status = 'assigned' и status = 'reviewed' (одинарные кавычки)
+app.put('/expert/works/:id/review', authenticate, requireExpert, asyncHandler(async (req, res) => {
+  const workId = req.params.id;
+  const userId = req.userId;
+  const { rating, comment } = req.body;
+
+  const work = dbGet('SELECT * FROM works WHERE id = ? AND assigned_expert_id = ? AND status = \'assigned\'', [workId, userId]);
+  if (!work) {
+    return res.status(403).json({ error: 'Работа не назначена вам или уже оценена' });
+  }
+
+  const stmt = db.prepare('UPDATE works SET status = \'reviewed\', rating = ?, review_comment = ? WHERE id = ?');
+  const result = stmt.run(rating || null, comment || null, workId);
+  if (result.changes === 0) {
+    return res.status(404).json({ error: 'Работа не найдена' });
+  }
+
+  res.json({ message: 'Оценка сохранена', workId });
+}));
+
+// ---- Получение списка пользователей (с фильтром) ----
+app.get('/api/users', authenticate, asyncHandler(async (req, res) => {
+  const { role } = req.query;
+  let sql = 'SELECT id, login, email, role FROM users';
+  const params = [];
+  if (role) {
+    sql += ' WHERE role = ?';
+    params.push(role);
+  }
+  sql += ' ORDER BY login';
+  const users = dbAll(sql, params);
+  res.json(users);
 }));
 
 // ---- Запуск сервера ----
@@ -543,7 +706,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📂 Загрузки: ${uploadDir}`);
 });
 
-// ---- Корректное закрытие БД ----
 process.on('SIGINT', () => {
     console.log('⛔ Закрываем соединение с БД...');
     db.close();
@@ -555,7 +717,6 @@ process.on('SIGTERM', () => {
     process.exit(0);
 });
 
-// ---- Обработчик ошибок ----
 app.use((err, req, res, next) => {
     console.error('❌ Ошибка:', err);
     res.status(500).json({ error: 'Упс! Что-то пошло не так. Попробуй ещё раз.' });

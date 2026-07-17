@@ -57,10 +57,45 @@ const dbReady = (async () => {
             file_path TEXT NOT NULL,
             original_name TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
+            status TEXT DEFAULT 'pending',          -- новый статус
+            assigned_expert_id INTEGER,             -- ID эксперта, назначенного на работу
+            rating INTEGER,                         -- оценка эксперта
+            review_comment TEXT,                    -- текст рецензии
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (assigned_expert_id) REFERENCES users(id)
         )
     `);
     console.log('Таблица works готова');
+
+    // Проверяем наличие колонок в works и добавляем недостающие (для обратной совместимости)
+    try {
+        const tableInfo = db.exec("PRAGMA table_info(works)");
+        if (tableInfo.length > 0) {
+            const columns = tableInfo[0].values.map(row => row[1]); // имена колонок
+            if (!columns.includes('status')) {
+                db.run("ALTER TABLE works ADD COLUMN status TEXT DEFAULT 'pending'");
+                console.log('Добавлена колонка status в works');
+            }
+            if (!columns.includes('assigned_expert_id')) {
+                db.run("ALTER TABLE works ADD COLUMN assigned_expert_id INTEGER REFERENCES users(id)");
+                console.log('Добавлена колонка assigned_expert_id в works');
+            }
+            if (!columns.includes('rating')) {
+                db.run("ALTER TABLE works ADD COLUMN rating INTEGER");
+                console.log('Добавлена колонка rating в works');
+            }
+            if (!columns.includes('review_comment')) {
+                db.run("ALTER TABLE works ADD COLUMN review_comment TEXT");
+                console.log('Добавлена колонка review_comment в works');
+            }
+        }
+    } catch (err) {
+        console.warn('Ошибка при добавлении колонок в works (возможно, они уже есть):', err.message);
+    }
+
+    // Индексы для ускорения запросов
+    db.run("CREATE INDEX IF NOT EXISTS idx_works_status ON works(status)");
+    db.run("CREATE INDEX IF NOT EXISTS idx_works_assigned_expert ON works(assigned_expert_id)");
 
     // Таблица рецензий на научные статьи (форма form.html)
     // Один пользователь может оценить конкретную работу только один раз —
