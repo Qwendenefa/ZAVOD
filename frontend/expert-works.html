@@ -6,199 +6,52 @@
   <title>Мои назначенные работы — Экспертум</title>
   <link rel="stylesheet" href="index.css">
   <style>
-    /* Общие стили для страницы */
-    body {
-      font-family: 'Work Sans', sans-serif;
-      background: #f8fafc;
-      margin: 0;
-      padding: 0;
-    }
-
-    .expert-container {
-      max-width: 1000px;
-      margin: 30px auto;
-      padding: 0 20px;
-    }
-
-    .page-title {
-      font-size: 26px;
-      font-weight: 600;
-      color: #035680;
-      margin-bottom: 25px;
-      border-bottom: 2px solid #007cba;
-      padding-bottom: 10px;
-    }
-
-    .works-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .work-card {
-      background: #ffffff;
-      border: 1px solid #e5e9f0;
-      border-radius: 12px;
-      padding: 20px 24px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-      transition: box-shadow 0.2s ease;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .work-card:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    }
-
-    .work-info {
-      flex: 1 1 60%;
-      min-width: 200px;
-    }
-
-    .work-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #1a2b3c;
-      margin: 0 0 6px 0;
-      line-height: 1.3;
-    }
-
-    .work-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px 24px;
-      font-size: 14px;
-      color: #5a6c7d;
-      margin-top: 4px;
-    }
-
-    .work-meta .type-badge {
-      background: #eef2f7;
-      padding: 2px 12px;
-      border-radius: 20px;
-      font-size: 13px;
-      color: #1a4d6b;
-      font-weight: 500;
-    }
-
-    .work-meta .date {
-      color: #8a9aa8;
-    }
-
-    .work-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      margin-top: 10px;
-      flex: 0 0 auto;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 18px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 500;
-      border: none;
-      cursor: pointer;
-      text-decoration: none;
-      transition: background 0.2s, transform 0.1s;
-    }
-
-    .btn:active {
-      transform: scale(0.97);
-    }
-
-    .btn-download {
-      background: #eef2f7;
-      color: #1a4d6b;
-    }
-    .btn-download:hover {
-      background: #dce3ec;
-    }
-
-    .btn-evaluate {
-      background: #007cba;
-      color: #fff;
-    }
-    .btn-evaluate:hover {
-      background: #005f8a;
-    }
-
-    .btn-results {
-      background: #28a745;
-      color: #fff;
-    }
-    .btn-results:hover {
-      background: #1e7e34;
-    }
-
-    .empty-msg {
-      text-align: center;
-      color: #8a9aa8;
-      padding: 40px 0;
-      font-size: 16px;
-    }
-
-    .error-msg {
-      color: #d32f2f;
-      text-align: center;
-      padding: 20px;
-    }
-
-    @media (max-width: 700px) {
-      .work-card {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .work-actions {
-        margin-top: 14px;
-        justify-content: flex-start;
-      }
-    }
+    body { font-family: 'Work Sans', sans-serif; background: #f8fafc; margin: 0; padding: 0; }
+    .expert-container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+    .page-title { font-size: 26px; font-weight: 600; color: #035680; margin-bottom: 25px; border-bottom: 2px solid #007cba; padding-bottom: 10px; }
+    .works-grid { display: flex; flex-direction: column; gap: 16px; }
+    .work-card { background: #fff; border: 1px solid #e5e9f0; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .work-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .work-info { flex: 1 1 60%; min-width: 200px; }
+    .work-title { font-size: 18px; font-weight: 600; color: #1a2b3c; margin: 0 0 6px 0; }
+    .work-meta { display: flex; flex-wrap: wrap; gap: 12px 24px; font-size: 14px; color: #5a6c7d; margin-top: 4px; }
+    .work-meta .type-badge { background: #eef2f7; padding: 2px 12px; border-radius: 20px; font-size: 13px; color: #1a4d6b; font-weight: 500; }
+    .work-meta .date { color: #8a9aa8; }
+    .work-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; flex: 0 0 auto; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 6px; font-size: 14px; font-weight: 500; border: none; cursor: pointer; text-decoration: none; transition: background 0.2s, transform 0.1s; }
+    .btn:active { transform: scale(0.97); }
+    .btn-download { background: #eef2f7; color: #1a4d6b; }
+    .btn-download:hover { background: #dce3ec; }
+    .btn-evaluate { background: #007cba; color: #fff; }
+    .btn-evaluate:hover { background: #005f8a; }
+    .btn-results { background: #28a745; color: #fff; }
+    .btn-results:hover { background: #1e7e34; }
+    .empty-msg { text-align: center; color: #8a9aa8; padding: 40px 0; font-size: 16px; }
+    .error-msg { color: #d32f2f; text-align: center; padding: 20px; }
+    @media (max-width: 700px) { .work-card { flex-direction: column; align-items: stretch; } .work-actions { margin-top: 14px; justify-content: flex-start; } }
   </style>
 </head>
 <body>
-
   <header>
     <div class="navigation">
       <h1 class="logo"><a href="index.html">Экспертум</a></h1>
-      <nav>
-        <ul id="navMenu"></ul>
-      </nav>
+      <nav><ul id="navMenu"></ul></nav>
     </div>
   </header>
-
   <main>
     <div class="expert-container">
       <h2 class="page-title">📋 Мои назначенные работы</h2>
-      <div id="worksList">
-        <div class="empty-msg">Загрузка...</div>
-      </div>
+      <div id="worksList"><div class="empty-msg">Загрузка...</div></div>
     </div>
   </main>
-
-  <footer>
-    <div><h3>Контакты:</h3><p>email@example.com</p></div>
-    <div><h3>Адрес:</h3><p>г. Москва, ул. Примерная, д. 1</p></div>
-  </footer>
-
+  <footer><div><h3>Контакты:</h3><p>email@example.com</p></div></footer>
   <script>
     (function() {
       const token = localStorage.getItem('token');
-      if (!token) {
-        window.location.href = 'login.html';
-        return;
-      }
+      if (!token) { window.location.href = 'login.html'; return; }
 
-      // ----- Навигация -----
-      const navMenu = document.getElementById('navMenu');
-      navMenu.innerHTML = `
+      // Навигация
+      document.getElementById('navMenu').innerHTML = `
         <li><a href="index.html">Главная</a></li>
         <li><a href="dashboard.html">Кабинет</a></li>
         <li><a href="#" id="logoutLink">Выйти</a></li>
@@ -210,20 +63,16 @@
         window.location.href = 'index.html';
       });
 
-      // ----- Вспомогательные функции -----
       function getTypeName(type) {
         return type === 'article' ? 'Научная статья' :
-               type === 'competition' ? 'Конкурсная работа' :
-               type;
+               type === 'competition' ? 'Конкурсная работа' : type;
       }
-
       function formatDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
         return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
       }
 
-      // ----- Скачивание файла -----
       async function downloadFile(workId) {
         try {
           const res = await fetch(`/api/works/${workId}/file`, {
@@ -254,15 +103,11 @@
         }
       }
 
-      // ----- Загрузка и отображение работ -----
       const container = document.getElementById('worksList');
 
       function loadWorks() {
         container.innerHTML = '<div class="empty-msg">Загрузка...</div>';
-
-        fetch('/expert/works', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+        fetch('/expert/works', { headers: { 'Authorization': `Bearer ${token}` } })
           .then(res => {
             if (res.status === 403) {
               container.innerHTML = '<p class="error-msg">У вас нет прав эксперта.</p>';
@@ -272,6 +117,8 @@
           })
           .then(works => {
             if (!works) return;
+            // Логируем статусы для отладки
+            console.log('Получены работы:', works.map(w => ({ id: w.id, title: w.title, status: w.status })));
             renderWorks(works);
           })
           .catch(err => {
@@ -287,20 +134,23 @@
         }
 
         let html = '<div class="works-grid">';
-
         works.forEach(work => {
           const typeDisplay = getTypeName(work.type);
           const dateFormatted = formatDate(work.created_at);
-          const isReviewed = work.status === 'reviewed';
+          // Явно приводим статус к нижнему регистру для надёжности
+          const status = (work.status || '').toLowerCase();
+          const isReviewed = status === 'reviewed';
 
-          // Кнопка действий в зависимости от статуса
           let actionBtn = '';
           if (isReviewed) {
-            // Уже оценена → ссылка на результаты
+            // Если оценена – ссылка на результаты
             actionBtn = `<a href="results.html?workId=${work.id}" class="btn btn-results">📊 Посмотреть результаты</a>`;
           } else {
-            // Ожидает оценки → ссылка на форму
-            actionBtn = `<a href="expert-assessment.html?workId=${work.id}" class="btn btn-evaluate">📝 Оценить</a>`;
+            // Иначе – ссылка на форму оценки
+            const evaluateUrl = work.type === 'competition'
+              ? `expert-assessment.html?workId=${work.id}`
+              : `form.html?workId=${work.id}`;
+            actionBtn = `<a href="${evaluateUrl}" class="btn btn-evaluate">📝 Оценить</a>`;
           }
 
           html += `
@@ -310,6 +160,7 @@
                 <div class="work-meta">
                   <span class="type-badge">${typeDisplay}</span>
                   <span class="date">${dateFormatted}</span>
+                  <span style="font-size:12px; color:#999;">Статус: ${status}</span>
                 </div>
               </div>
               <div class="work-actions">
@@ -319,11 +170,9 @@
             </div>
           `;
         });
-
         html += '</div>';
         container.innerHTML = html;
 
-        // ----- Обработчики кнопок "Скачать файл" -----
         document.querySelectorAll('.btn-download').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const workId = e.currentTarget.dataset.workId;
@@ -332,7 +181,6 @@
         });
       }
 
-      // ----- Запуск -----
       loadWorks();
     })();
   </script>

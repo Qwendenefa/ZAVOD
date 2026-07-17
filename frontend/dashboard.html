@@ -261,7 +261,6 @@
     <div class="navigation">
       <h1 class="logo">
         <a href="index.html">Экспертум</a>
-        <!-- SVG логотип (можно убрать или оставить) -->
         <svg style="fill:#007cba" width="40px" height="40px" fill="#ffffff" viewBox="-3.2 -3.2 38.40 38.40" version="1.1" xmlns="http://www.w3.org/2000/svg" transform="matrix(1, 0, 0, 1, 0, 0)rotate(0)">
           <g id="SVGRepo_bgCarrier" stroke-width="0">
             <path transform="translate(-3.2, -3.2), scale(2.4)" fill="#ffffff" d="M9.166.33a2.25 2.25 0 00-2.332 0l-5.25 3.182A2.25 2.25 0 00.5 5.436v5.128a2.25 2.25 0 001.084 1.924l5.25 3.182a2.25 2.25 0 002.332 0l5.25-3.182a2.25 2.25 0 001.084-1.924V5.436a2.25 2.25 0 00-1.084-1.924L9.166.33z" strokewidth="0"/>
@@ -278,7 +277,6 @@
           <!-- Заполняется динамически -->
         </ul>
       </nav>
-      <!-- Кнопка для открытия шторки -->
       <button id="roleToggleBtn" class="role-toggle-btn">
         <span id="currentRoleDisplay">Автор</span> ▼
       </button>
@@ -314,19 +312,8 @@
       </div>
 
       <!-- Быстрые действия -->
-      <div class="dashboard-actions">
-        <a href="upload.html" class="action-btn primary">
-          <span class="action-icon">📤</span>
-          Загрузить работу
-        </a>
-        <a href="my-articles.html" class="action-btn">
-          <span class="action-icon">📚</span>
-          Мои работы
-        </a>
-        <a href="works-list.html" class="action-btn">
-          <span class="action-icon">📋</span>
-          Все работы
-        </a>
+      <div class="dashboard-actions" id="dashboardActions">
+        <!-- Заполняется скриптом -->
       </div>
 
       <!-- Выход -->
@@ -336,10 +323,8 @@
     </div>
   </main>
 
-  <!-- Оверлей (затемнение) -->
+  <!-- Оверлей и шторка -->
   <div id="drawerOverlay" class="drawer-overlay hidden"></div>
-
-  <!-- Выдвижная шторка -->
   <div id="roleDrawer" class="role-drawer hidden">
     <div class="drawer-header">
       <h4>Смена роли</h4>
@@ -356,14 +341,8 @@
   </div>
 
   <footer>
-    <div>
-      <h3>Контакты:</h3>
-      <p>email@example.com</p>
-    </div>
-    <div>
-      <h3>Адрес:</h3>
-      <p>г. Москва, ул. Примерная, д. 1</p>
-    </div>
+    <div><h3>Контакты:</h3><p>email@example.com</p></div>
+    <div><h3>Адрес:</h3><p>г. Москва, ул. Примерная, д. 1</p></div>
   </footer>
 
   <script>
@@ -374,25 +353,11 @@
         return;
       }
 
-      // ========== 1. НАВИГАЦИЯ (зависит от роли) ==========
-      // Сначала загружаем пользователя из localStorage (если есть) или получим потом
-      let currentUser = null;
-      try {
-        currentUser = JSON.parse(localStorage.getItem('user') || 'null');
-      } catch (e) {}
-
+      // ========== 1. НАВИГАЦИЯ (шапка) ==========
       const navMenu = document.getElementById('navMenu');
-
-      function buildNav(role) {
-        let roleLink = '';
-        if (role === 'admin') {
-          roleLink = '<li><a href="admin-works.html">⚙️ Админ-панель</a></li>';
-        } else if (role === 'expert') {
-          roleLink = '<li><a href="expert-works.html">📋 Мои назначенные работы</a></li>';
-        }
+      function buildNav() {
         navMenu.innerHTML = `
           <li><a href="index.html">Главная</a></li>
-          ${roleLink}
           <li><a href="dashboard.html">Кабинет</a></li>
           <li><a href="#" id="logoutLink">Выйти</a></li>
         `;
@@ -403,16 +368,14 @@
           window.location.href = 'index.html';
         });
       }
+      buildNav();
 
-      // Если уже есть пользователь в localStorage – строим меню сразу
-      if (currentUser && currentUser.role) {
-        buildNav(currentUser.role);
-      } else {
-        // По умолчанию показываем без ролевой ссылки (потом обновим)
-        buildNav('author');
-      }
+      // ========== 2. ПРОФИЛЬ, СТАТИСТИКА, ШТОРКА ==========
+      let currentUser = null;
+      try {
+        currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+      } catch (e) {}
 
-      // ========== 2. ПРОФИЛЬ, СТАТИСТИКА и ШТОРКА ==========
       const userAvatar = document.getElementById('userAvatar');
       const userName = document.getElementById('userName');
       const userEmail = document.getElementById('userEmail');
@@ -422,7 +385,6 @@
       const currentRoleDisplay = document.getElementById('currentRoleDisplay');
       const drawerCurrentRole = document.getElementById('drawerCurrentRole');
 
-      // Функция обновления UI ролей (вызывается после загрузки профиля и после смены)
       function updateRoleUI(user) {
         const roleMap = {
           'author': 'Автор',
@@ -434,13 +396,44 @@
         drawerCurrentRole.textContent = displayName;
         userRole.textContent = displayName;
 
-        // Подсветка активной кнопки в шторке
         document.querySelectorAll('.role-option').forEach(btn => {
           btn.classList.toggle('active', btn.dataset.role === user.role);
         });
       }
 
-      // Загрузка профиля и списка работ
+      // ========== 3. БЫСТРЫЕ ДЕЙСТВИЯ (в зависимости от роли) ==========
+      function buildActions(role) {
+        const actionsContainer = document.getElementById('dashboardActions');
+        // Общие для всех кнопки
+        let html = `
+          <a href="upload.html" class="action-btn primary">
+            <span class="action-icon">📤</span> Загрузить работу
+          </a>
+          <a href="my-articles.html" class="action-btn">
+            <span class="action-icon">📚</span> Мои работы
+          </a>
+        `;
+
+        // Дополнительная кнопка для эксперта или админа
+        if (role === 'admin') {
+          html += `
+            <a href="admin-works.html" class="action-btn">
+              <span class="action-icon">⚙️</span> Панель администратора
+            </a>
+          `;
+        } else if (role === 'expert') {
+          html += `
+            <a href="expert-works.html" class="action-btn">
+              <span class="action-icon">📋</span> Мои назначенные работы
+            </a>
+          `;
+        }
+        // Для автора больше ничего не добавляем
+
+        actionsContainer.innerHTML = html;
+      }
+
+      // ========== 4. ЗАГРУЗКА ПРОФИЛЯ ==========
       Promise.all([
         fetch('/me', {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -460,11 +453,9 @@
         const user = await profileRes.json();
         const works = worksRes.ok ? await worksRes.json() : [];
 
-        // Сохраняем в localStorage
         localStorage.setItem('user', JSON.stringify(user));
         currentUser = user;
 
-        // Обновляем профиль
         const initial = (user.login || user.email || 'U')[0].toUpperCase();
         userAvatar.textContent = initial;
         userName.textContent = user.login || 'Пользователь';
@@ -472,16 +463,17 @@
         updateRoleUI(user);
         worksCount.textContent = works.length;
 
-        // Перестраиваем навигацию (если роль изменилась)
-        buildNav(user.role);
+        buildActions(user.role);
       })
       .catch(err => {
         console.error(err);
         document.querySelector('.dashboard-header').innerHTML +=
           `<div style="color:red; margin-top:10px;">Ошибка загрузки данных</div>`;
+        // По умолчанию показываем кнопки для автора
+        buildActions('author');
       });
 
-      // ========== 3. ШТОРКА СМЕНЫ РОЛИ ==========
+      // ========== 5. ШТОРКА СМЕНЫ РОЛИ ==========
       const roleToggleBtn = document.getElementById('roleToggleBtn');
       const roleDrawer = document.getElementById('roleDrawer');
       const closeDrawerBtn = document.getElementById('closeDrawerBtn');
@@ -502,7 +494,6 @@
       closeDrawerBtn?.addEventListener('click', closeDrawer);
       drawerOverlay?.addEventListener('click', closeDrawer);
 
-      // Обработка выбора роли
       document.querySelectorAll('.role-option').forEach(btn => {
         btn.addEventListener('click', async function() {
           const newRole = this.dataset.role;
@@ -522,34 +513,26 @@
               return;
             }
             const data = await response.json();
-            // Обновляем токен и данные пользователя
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
             currentUser = data.user;
 
-            // Обновляем UI
             updateRoleUI(data.user);
-            // Обновляем аватар и имя (на всякий случай)
             const initial = (data.user.login || data.user.email || 'U')[0].toUpperCase();
             userAvatar.textContent = initial;
             userName.textContent = data.user.login || 'Пользователь';
             userEmail.textContent = data.user.email;
 
-            // Перестраиваем навигацию (чтобы показать/скрыть ссылки)
-            buildNav(data.user.role);
+            buildActions(data.user.role);
 
-            // Закрываем шторку
             closeDrawer();
-
-            // Можно перезагрузить страницу, чтобы интерфейс обновился полностью
-            // location.reload();
           } catch (err) {
             alert('Ошибка соединения: ' + err.message);
           }
         });
       });
 
-      // ========== 4. ВЫХОД ==========
+      // ========== 6. ВЫХОД ==========
       document.getElementById('logoutBtn').addEventListener('click', () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
