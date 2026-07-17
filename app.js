@@ -11,7 +11,6 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const iconv = require('iconv-lite');
 
-// Используем нативный better-sqlite3
 const Database = require('better-sqlite3');
 
 const app = express();
@@ -261,12 +260,19 @@ const upload = multer({
     }
 });
 
+// ---- ЗАГРУЗКА РАБОТЫ (с валидацией типа) ----
+const allowedTypes = ['article', 'competition'];
 app.post('/api/works', authenticate, upload.single('file'), asyncHandler(async (req, res) => {
     const { title, type } = req.body;
     const file = req.file;
 
     if (!title || !type || !file) {
         return res.status(400).json({ error: 'Все поля обязательны' });
+    }
+
+    // Проверка допустимого типа
+    if (!allowedTypes.includes(type)) {
+        return res.status(400).json({ error: 'Тип работы должен быть "article" (научная статья) или "competition" (конкурсная работа)' });
     }
 
     const originalName = iconv.decode(Buffer.from(file.originalname, 'binary'), 'win1251');
@@ -280,6 +286,7 @@ app.post('/api/works', authenticate, upload.single('file'), asyncHandler(async (
     res.status(201).json({ id: lastID, title, type, file_path: file.path, original_name: originalName });
 }));
 
+// ---- Остальные эндпоинты с работами ----
 app.get('/api/works/:id/file', authenticate, asyncHandler(async (req, res) => {
     const row = dbGet('SELECT file_path, original_name FROM works WHERE id = ?', [req.params.id]);
     if (!row) return res.status(404).json({ error: 'Файл не найден' });
@@ -606,6 +613,7 @@ const requireExpert = (req, res, next) => {
   next();
 };
 
+// Получить все работы (админ)
 app.get('/admin/works', authenticate, requireAdmin, asyncHandler(async (req, res) => {
   const works = dbAll(`
     SELECT w.*, 
@@ -619,7 +627,7 @@ app.get('/admin/works', authenticate, requireAdmin, asyncHandler(async (req, res
   res.json(works);
 }));
 
-// ИСПРАВЛЕНО: status = 'assigned' (одинарные кавычки)
+// НАЗНАЧИТЬ ЭКСПЕРТА (с проверкой, что эксперт не автор)
 app.put('/admin/works/:id/assign', authenticate, requireAdmin, asyncHandler(async (req, res) => {
   const workId = req.params.id;
   const { expertId } = req.body;
@@ -628,17 +636,29 @@ app.put('/admin/works/:id/assign', authenticate, requireAdmin, asyncHandler(asyn
     return res.status(400).json({ error: 'Не указан эксперт' });
   }
 
+  // Получаем работу, чтобы проверить автора
+  const work = dbGet('SELECT user_id FROM works WHERE id = ?', [workId]);
+  if (!work) return res.status(404).json({ error: 'Работа не найдена' });
+
+  // Проверяем, что эксперт не является автором работы
+  if (work.user_id == expertId) {
+    return res.status(400).json({ error: 'Нельзя назначить автора работы экспертом' });
+  }
+
+  // Проверяем, существует ли эксперт и имеет ли он роль expert
   const expert = dbGet('SELECT id, role FROM users WHERE id = ? AND role = \'expert\'', [expertId]);
   if (!expert) {
     return res.status(400).json({ error: 'Эксперт не найден или не имеет роли "expert"' });
   }
 
+  // Обновляем работу
   const stmt = db.prepare('UPDATE works SET assigned_expert_id = ?, status = \'assigned\' WHERE id = ?');
   const result = stmt.run(expertId, workId);
   if (result.changes === 0) {
     return res.status(404).json({ error: 'Работа не найдена' });
   }
 
+  // Возвращаем обновлённую работу
   const updated = dbGet(`
     SELECT w.*, u.login as author_name, e.login as expert_name
     FROM works w
@@ -647,6 +667,37 @@ app.put('/admin/works/:id/assign', authenticate, requireAdmin, asyncHandler(asyn
     WHERE w.id = ?
   `, [workId]);
   res.json(updated);
+}));
+
+// УДАЛИТЬ РАБОТУ (админ)
+app.delete('/admin/works/:id', authenticate, requireAdmin, asyncHandler(async (req, res) => {
+  const workId = req.params.id;
+
+  // Получаем информацию о работе (особенно путь к файлу)
+  const work = dbGet('SELECT file_path FROM works WHERE id = ?', [workId]);
+  if (!work) return res.status(404).json({ error: 'Работа не найдена' });
+
+  // Удаляем файл с диска, если он существует
+  if (work.file_path && fs.existsSync(work.file_path)) {
+    try {
+      fs.unlinkSync(work.file_path);
+      console.log(`🗑️ Файл удалён: ${work.file_path}`);
+    } catch (err) {
+      console.error('Ошибка удаления файла:', err.message);
+    }
+  }
+
+  // Удаляем связанные записи (рецензии и экспертные оценки)
+  dbRun('DELETE FROM reviews WHERE work_id = ?', [workId]);
+  dbRun('DELETE FROM expert_assessments WHERE work_id = ?', [workId]);
+
+  // Удаляем саму работу
+  const result = dbRun('DELETE FROM works WHERE id = ?', [workId]);
+  if (result.changes === 0) {
+    return res.status(404).json({ error: 'Работа не найдена' });
+  }
+
+  res.json({ message: 'Работа и все связанные данные удалены' });
 }));
 
 // =================== ЭКСПЕРТ ===================
@@ -664,7 +715,6 @@ app.get('/expert/works', authenticate, requireExpert, asyncHandler(async (req, r
   res.json(works);
 }));
 
-// ИСПРАВЛЕНО: status = 'assigned' и status = 'reviewed' (одинарные кавычки)
 app.put('/expert/works/:id/review', authenticate, requireExpert, asyncHandler(async (req, res) => {
   const workId = req.params.id;
   const userId = req.userId;

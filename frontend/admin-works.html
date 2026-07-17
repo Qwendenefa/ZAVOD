@@ -7,18 +7,99 @@
   <link rel="stylesheet" href="index.css">
   <style>
     .admin-container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
-    .work-item { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
-    .work-item .meta { color: #666; font-size: 14px; }
-    .work-item .actions { margin-top: 10px; }
-    .assign-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .assign-form select { padding: 6px 12px; border-radius: 4px; border: 1px solid #ccc; }
-    .assign-form button { background: #007cba; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 30px 0 15px 0;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #007cba;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-title .count {
+      font-size: 16px;
+      font-weight: normal;
+      background: #f0f0f0;
+      padding: 4px 12px;
+      border-radius: 20px;
+      color: #555;
+    }
+    .work-item {
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      background: #fafafa;
+      transition: box-shadow 0.2s;
+    }
+    .work-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .work-item h4 { margin: 0 0 8px 0; }
+    .work-item .meta {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .work-item .meta span { margin-right: 15px; }
+    .work-item .actions {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .assign-form {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .assign-form select {
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      min-width: 180px;
+    }
+    .assign-form button {
+      background: #007cba;
+      color: white;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
     .assign-form button:hover { background: #005f8a; }
-    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; }
+    .assign-form button.secondary { background: #6c757d; }
+    .assign-form button.secondary:hover { background: #5a6268; }
+    .delete-btn {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    .delete-btn:hover { background: #c82333; }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
     .status-pending { background: #ffc107; color: #000; }
     .status-assigned { background: #17a2b8; color: #fff; }
     .status-reviewed { background: #28a745; color: #fff; }
     .error-msg { color: red; }
+    .empty-msg { color: #999; font-style: italic; margin: 10px 0; }
+    .expert-info { background: #e9ecef; padding: 4px 10px; border-radius: 4px; display: inline-block; }
+    .review-info { margin-top: 8px; background: #f8f9fa; padding: 10px; border-radius: 4px; }
+    .review-info strong { display: inline-block; min-width: 60px; }
   </style>
 </head>
 <body>
@@ -33,12 +114,15 @@
 
   <main>
     <div class="admin-container">
-      <h2>Панель администратора — распределение работ</h2>
-      <div id="worksList"></div>
+      <h2>Панель администратора — управление работами</h2>
+      <div id="worksContainer"></div>
     </div>
   </main>
 
-  <footer>...</footer>
+  <footer>
+    <div><h3>Контакты:</h3><p>email@example.com</p></div>
+    <div><h3>Адрес:</h3><p>г. Москва, ул. Примерная, д. 1</p></div>
+  </footer>
 
   <script>
     (function() {
@@ -58,13 +142,15 @@
         window.location.href = 'index.html';
       });
 
-      const worksList = document.getElementById('worksList');
+      const container = document.getElementById('worksContainer');
 
-      // Загружаем список экспертов для выпадающего списка
+      // Загружаем список экспертов для выпадающих списков
       let experts = [];
 
       function loadExperts() {
-        fetch('/api/users?role=expert', { headers: { 'Authorization': `Bearer ${token}` } })
+        return fetch('/api/users?role=expert', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
           .then(res => res.json())
           .then(data => { experts = data; })
           .catch(() => experts = []);
@@ -74,7 +160,7 @@
         fetch('/admin/works', { headers: { 'Authorization': `Bearer ${token}` } })
           .then(res => {
             if (res.status === 403) {
-              worksList.innerHTML = '<p class="error-msg">У вас нет прав администратора.</p>';
+              container.innerHTML = '<p class="error-msg">У вас нет прав администратора.</p>';
               return;
             }
             return res.json();
@@ -84,82 +170,202 @@
             renderWorks(works);
           })
           .catch(err => {
-            worksList.innerHTML = '<p class="error-msg">Ошибка загрузки работ</p>';
+            container.innerHTML = '<p class="error-msg">Ошибка загрузки работ</p>';
             console.error(err);
           });
       }
 
       function renderWorks(works) {
-        if (works.length === 0) {
-          worksList.innerHTML = '<p>Нет загруженных работ.</p>';
-          return;
-        }
+        // Группируем по статусу
+        const pending = works.filter(w => w.status === 'pending');
+        const assigned = works.filter(w => w.status === 'assigned');
+        const reviewed = works.filter(w => w.status === 'reviewed');
+
         let html = '';
-        works.forEach(w => {
-          const statusClass = {
-            'pending': 'status-pending',
-            'assigned': 'status-assigned',
-            'reviewed': 'status-reviewed'
-          }[w.status] || '';
 
-          html += `
-            <div class="work-item" data-id="${w.id}">
-              <h4>${w.title}</h4>
-              <div class="meta">
-                Автор: ${w.author_name || 'неизвестен'} | 
-                Статус: <span class="status-badge ${statusClass}">${w.status}</span>
-                ${w.assigned_expert_id ? `| Эксперт: ${w.expert_name || 'назначен'}` : ''}
-              </div>
-              <div class="actions">
-                ${w.status === 'pending' || w.status === 'assigned' ? `
-                  <form class="assign-form" data-work-id="${w.id}">
-                    <select name="expert" required>
-                      <option value="">-- Выберите эксперта --</option>
-                      ${experts.map(e => `<option value="${e.id}" ${w.assigned_expert_id === e.id ? 'selected' : ''}>${e.login}</option>`).join('')}
-                    </select>
-                    <button type="submit">${w.assigned_expert_id ? 'Переназначить' : 'Назначить'}</button>
-                  </form>
-                ` : `<span>Работа уже оценена</span>`}
-              </div>
-            </div>
-          `;
-        });
-        worksList.innerHTML = html;
-
-        // Обработчики форм назначения
-        document.querySelectorAll('.assign-form').forEach(form => {
-          form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const workId = this.dataset.workId;
-            const expertId = this.querySelector('select').value;
-            if (!expertId) { alert('Выберите эксперта'); return; }
-            try {
-              const res = await fetch(`/admin/works/${workId}/assign`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ expertId })
-              });
-              if (!res.ok) {
-                const err = await res.json();
-                alert('Ошибка: ' + (err.error || 'Не удалось назначить'));
-                return;
-              }
-              // Перезагружаем список
-              loadWorks();
-            } catch (err) {
-              alert('Ошибка соединения: ' + err.message);
-            }
+        // ---- Секция: Ожидают распределения ----
+        html += `<div class="section-title">
+          <span>📌 Ожидают распределения</span>
+          <span class="count">${pending.length}</span>
+        </div>`;
+        if (pending.length === 0) {
+          html += `<div class="empty-msg">Нет работ, ожидающих распределения.</div>`;
+        } else {
+          pending.forEach(w => {
+            html += buildWorkCard(w, 'pending');
           });
+        }
+
+        // ---- Секция: Распределены ----
+        html += `<div class="section-title" style="border-bottom-color:#17a2b8;">
+          <span>👥 Распределены экспертам</span>
+          <span class="count">${assigned.length}</span>
+        </div>`;
+        if (assigned.length === 0) {
+          html += `<div class="empty-msg">Нет распределённых работ.</div>`;
+        } else {
+          assigned.forEach(w => {
+            html += buildWorkCard(w, 'assigned');
+          });
+        }
+
+        // ---- Секция: Оценены ----
+        html += `<div class="section-title" style="border-bottom-color:#28a745;">
+          <span>⭐ Оценены</span>
+          <span class="count">${reviewed.length}</span>
+        </div>`;
+        if (reviewed.length === 0) {
+          html += `<div class="empty-msg">Нет оценённых работ.</div>`;
+        } else {
+          reviewed.forEach(w => {
+            html += buildWorkCard(w, 'reviewed');
+          });
+        }
+
+        container.innerHTML = html;
+
+        // Навешиваем обработчики на формы назначения
+        document.querySelectorAll('.assign-form').forEach(form => {
+          form.addEventListener('submit', handleAssign);
+        });
+
+        // Навешиваем обработчики на кнопки удаления
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', handleDelete);
         });
       }
 
-      // Инициализация
-      loadExperts();
-      loadWorks();
+      // Построение карточки работы
+      function buildWorkCard(work, status) {
+        const statusClass = {
+          'pending': 'status-pending',
+          'assigned': 'status-assigned',
+          'reviewed': 'status-reviewed'
+        }[status] || '';
 
+        const statusLabels = {
+          'pending': 'Ожидает',
+          'assigned': 'Назначена',
+          'reviewed': 'Оценена'
+        };
+
+        let actionsHtml = '';
+
+        if (status === 'pending') {
+          actionsHtml = `
+            <form class="assign-form" data-work-id="${work.id}">
+              <select name="expert" required>
+                <option value="">-- Выберите эксперта --</option>
+                ${experts.map(e => `<option value="${e.id}">${e.login}</option>`).join('')}
+              </select>
+              <button type="submit">Назначить</button>
+            </form>
+          `;
+        } else if (status === 'assigned') {
+          const expertName = work.expert_name || 'неизвестен';
+          actionsHtml = `
+            <div class="expert-info">👤 Назначен: <strong>${expertName}</strong></div>
+            <form class="assign-form" data-work-id="${work.id}">
+              <select name="expert">
+                <option value="">-- Переназначить --</option>
+                ${experts.map(e => `<option value="${e.id}" ${e.id == work.assigned_expert_id ? 'selected' : ''}>${e.login}</option>`).join('')}
+              </select>
+              <button type="submit" class="secondary">Переназначить</button>
+            </form>
+          `;
+        } else if (status === 'reviewed') {
+          const expertName = work.expert_name || 'неизвестен';
+          const rating = work.rating || '—';
+          const comment = work.review_comment || 'Нет комментария';
+          actionsHtml = `
+            <div class="review-info">
+              <div><strong>Эксперт:</strong> ${expertName}</div>
+              <div><strong>Оценка:</strong> ${rating} / 10</div>
+              <div><strong>Рецензия:</strong> ${comment}</div>
+            </div>
+          `;
+        }
+
+        // Кнопка удаления доступна для всех статусов
+        const deleteBtnHtml = `<button class="delete-btn" data-work-id="${work.id}">🗑️ Удалить</button>`;
+
+        return `
+          <div class="work-item" data-id="${work.id}">
+            <h4>${work.title}</h4>
+            <div class="meta">
+              <span>📂 Тип: ${work.type}</span>
+              <span>👤 Автор: ${work.author_name || 'неизвестен'}</span>
+              <span>📅 ${new Date(work.created_at).toLocaleDateString()}</span>
+              <span class="status-badge ${statusClass}">${statusLabels[status]}</span>
+            </div>
+            <div class="actions">
+              ${actionsHtml}
+              ${deleteBtnHtml}
+            </div>
+          </div>
+        `;
+      }
+
+      // Обработчик назначения / переназначения
+      async function handleAssign(e) {
+        e.preventDefault();
+        const form = e.target;
+        const workId = form.dataset.workId;
+        const expertId = form.querySelector('select[name="expert"]').value;
+        if (!expertId) {
+          alert('Выберите эксперта');
+          return;
+        }
+
+        try {
+          const res = await fetch(`/admin/works/${workId}/assign`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ expertId })
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            alert('Ошибка: ' + (err.error || 'Не удалось назначить'));
+            return;
+          }
+          // Перезагружаем список
+          loadWorks();
+        } catch (err) {
+          alert('Ошибка соединения: ' + err.message);
+        }
+      }
+
+      // Обработчик удаления работы
+      async function handleDelete(e) {
+        const workId = e.target.dataset.workId;
+        if (!confirm('Вы уверены, что хотите удалить эту работу и все связанные с ней данные (файл, рецензии, оценки)?')) {
+          return;
+        }
+
+        try {
+          const res = await fetch(`/admin/works/${workId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            alert('Ошибка: ' + (err.error || 'Не удалось удалить работу'));
+            return;
+          }
+          // Перезагружаем список
+          loadWorks();
+        } catch (err) {
+          alert('Ошибка соединения: ' + err.message);
+        }
+      }
+
+      // Инициализация
+      loadExperts().then(() => loadWorks());
     })();
   </script>
 </body>

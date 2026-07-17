@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <style>
-        /* Ваши стили */
+        /* Ваши стили (оставляем без изменений) */
         .expert-header {
             text-align: center;
             font-size: clamp(20px, 4vw + 8px, 28px);
@@ -61,7 +61,6 @@
             border: 1px solid #ffeeba;
         }
 
-        /* Стили для слайдеров */
         .eval-item {
             display: flex;
             align-items: center;
@@ -118,7 +117,6 @@
             color: #1a4d6b;
         }
 
-        /* Стили для иконки подсказки */
         .eval-item .help-icon {
             display: inline-flex;
             align-items: center;
@@ -142,7 +140,6 @@
             padding: 0;
             overflow: visible;
         }
-
         .eval-item .help-icon:hover::after {
             content: attr(data-tooltip);
             position: absolute;
@@ -160,7 +157,6 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             pointer-events: none;
         }
-
         .eval-item .help-icon:hover::before {
             content: '';
             position: absolute;
@@ -178,7 +174,8 @@
 
     <main>
         <div class="questionnaire">
-            <form id="expertForm" method="POST">
+            <!-- ИСПРАВЛЕНО: добавлен action -->
+            <form id="expertForm" action="/api/expert-assessment" method="POST">
                 <h1 class="expert-header">ЭКСПЕРТНЫЙ ЛИСТ</h1>
                 <p class="expert-subheader">Конкурса научно-технических работ в АО «НПО «Обуховский завод»</p>
                 <hr>
@@ -299,12 +296,17 @@
                 window.location.href = 'login.html';
                 return;
             }
-            document.getElementById('logoutLink').addEventListener('click', (e) => {
-                e.preventDefault();
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                window.location.href = 'index.html';
-            });
+
+            // ИСПРАВЛЕНО: проверяем существование элемента, чтобы избежать ошибки
+            const logoutLink = document.getElementById('logoutLink');
+            if (logoutLink) {
+                logoutLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = 'index.html';
+                });
+            }
 
             const form = document.getElementById('expertForm');
             const messageDiv = document.getElementById('message');
@@ -363,8 +365,9 @@
                 console.error(err);
             });
 
+            // Обработчик отправки формы – теперь fetch на /api/expert-assessment
             form.addEventListener('submit', async (e) => {
-                e.preventDefault();
+                e.preventDefault(); // Блокируем стандартную отправку
 
                 const formData = new FormData(e.target);
                 const data = Object.fromEntries(formData);
