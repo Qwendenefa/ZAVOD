@@ -50,27 +50,16 @@
     }
     .assign-form {
       display: flex;
-      flex-wrap: wrap;
       gap: 10px;
       align-items: center;
-    }
-    .assign-form .expert-checkboxes {
-      display: flex;
       flex-wrap: wrap;
-      gap: 8px 15px;
-      align-items: center;
     }
-    .assign-form .expert-checkboxes label {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      cursor: pointer;
+    .assign-form select {
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
       font-size: 14px;
-    }
-    .assign-form .expert-checkboxes input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
+      min-width: 180px;
     }
     .assign-form button {
       background: #007cba;
@@ -83,6 +72,35 @@
       transition: background 0.2s;
     }
     .assign-form button:hover { background: #005f8a; }
+    .assign-form button.secondary { background: #6c757d; }
+    .assign-form button.secondary:hover { background: #5a6268; }
+    .expert-checklist {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .expert-checkbox {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      background: #fff;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .expert-checkbox:has(input:checked) {
+      background: #e7f4fb;
+      border-color: #007cba;
+      color: #005f8a;
+      font-weight: 500;
+    }
+    .expert-checkbox input { cursor: pointer; }
+    .expert-checkbox.disabled { opacity: 0.4; cursor: not-allowed; }
+    .assign-hint { font-size: 12px; color: #888; margin: 2px 0 4px; }
     .delete-btn {
       background: #dc3545;
       color: white;
@@ -109,7 +127,6 @@
     .expert-info { background: #e9ecef; padding: 4px 10px; border-radius: 4px; display: inline-block; }
     .review-info { margin-top: 8px; background: #f8f9fa; padding: 10px; border-radius: 4px; }
     .review-info strong { display: inline-block; min-width: 60px; }
-    .hint { font-size: 13px; color: #666; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -154,6 +171,7 @@
 
       const container = document.getElementById('worksContainer');
 
+      // Функция для красивого отображения типа
       function getTypeName(type) {
         return type === 'article' ? 'Научная статья' :
                type === 'competition' ? 'Конкурсная работа' :
@@ -197,7 +215,7 @@
 
         let html = '';
 
-        // ---- Ожидают распределения ----
+        // ---- Секция: Ожидают распределения ----
         html += `<div class="section-title">
           <span>📌 Ожидают распределения</span>
           <span class="count">${pending.length}</span>
@@ -210,7 +228,7 @@
           });
         }
 
-        // ---- Распределены ----
+        // ---- Секция: Распределены ----
         html += `<div class="section-title" style="border-bottom-color:#17a2b8;">
           <span>👥 Распределены экспертам</span>
           <span class="count">${assigned.length}</span>
@@ -223,7 +241,7 @@
           });
         }
 
-        // ---- Оценены ----
+        // ---- Секция: Оценены ----
         html += `<div class="section-title" style="border-bottom-color:#28a745;">
           <span>⭐ Оценены</span>
           <span class="count">${reviewed.length}</span>
@@ -244,6 +262,24 @@
         document.querySelectorAll('.delete-btn').forEach(btn => {
           btn.addEventListener('click', handleDelete);
         });
+        document.querySelectorAll('.expert-checklist').forEach(setupChecklistLimit);
+      }
+
+      // Не даём выбрать больше REQUIRED_EXPERTS (3) экспертов в одном списке
+      function setupChecklistLimit(listEl) {
+        const max = Number(listEl.dataset.max) || 3;
+        const boxes = () => Array.from(listEl.querySelectorAll('input[type="checkbox"]'));
+        function refresh() {
+          const checkedCount = boxes().filter(b => b.checked).length;
+          boxes().forEach(b => {
+            const label = b.closest('.expert-checkbox');
+            const disable = !b.checked && checkedCount >= max;
+            b.disabled = disable;
+            label.classList.toggle('disabled', disable);
+          });
+        }
+        listEl.addEventListener('change', refresh);
+        refresh();
       }
 
       function buildWorkCard(work, status) {
@@ -259,41 +295,55 @@
           'reviewed': 'Оценена'
         };
 
+        // Используем функцию для красивого отображения типа
         const typeDisplay = getTypeName(work.type);
+
+        const REQUIRED_EXPERTS = 3;
+        const selectedIds = (work.expert_ids || '').split(',').filter(Boolean).map(String);
+        const reviewsCount = work.reviews_count || 0;
+
+        function expertChecklist() {
+          const options = experts.filter(e => e.id != work.user_id);
+          if (options.length === 0) {
+            return '<div class="assign-hint">Нет доступных экспертов (кроме автора работы).</div>';
+          }
+          return `
+            <div class="expert-checklist" data-max="${REQUIRED_EXPERTS}">
+              ${options.map(e => `
+                <label class="expert-checkbox">
+                  <input type="checkbox" name="expertIds" value="${e.id}" ${selectedIds.includes(String(e.id)) ? 'checked' : ''}>
+                  ${e.login}
+                </label>
+              `).join('')}
+            </div>
+          `;
+        }
 
         let actionsHtml = '';
 
-        if (status === 'pending' || status === 'assigned') {
-          // Список уже назначенных экспертов (логины)
-          const assignedExperts = work.experts ? work.experts.split(', ') : [];
-
-          // Строим чекбоксы для каждого эксперта
-          const checkboxesHtml = experts.map(e => {
-            const checked = assignedExperts.includes(e.login) ? 'checked' : '';
-            return `
-              <label>
-                <input type="checkbox" name="expertIds" value="${e.id}" ${checked}>
-                ${e.login}
-              </label>
-            `;
-          }).join('');
-
+        if (status === 'pending') {
           actionsHtml = `
             <form class="assign-form" data-work-id="${work.id}">
-              <div class="expert-checkboxes">
-                ${checkboxesHtml}
-                <span class="hint" style="margin-left:5px;">(выберите до 3-х экспертов)</span>
-              </div>
-              <button type="submit">${status === 'pending' ? 'Назначить' : 'Переназначить'}</button>
+              <div class="assign-hint">Выберите до ${REQUIRED_EXPERTS} экспертов, которые будут оценивать работу:</div>
+              ${expertChecklist()}
+              <button type="submit">Назначить</button>
             </form>
-            ${assignedExperts.length > 0 ? `<div class="expert-info">👤 Назначены: <strong>${assignedExperts.join(', ')}</strong></div>` : ''}
+          `;
+        } else if (status === 'assigned') {
+          actionsHtml = `
+            <div class="expert-info">👥 Назначены: <strong>${work.experts || '—'}</strong> · оценок получено: ${reviewsCount}/${selectedIds.length || REQUIRED_EXPERTS}</div>
+            <form class="assign-form" data-work-id="${work.id}">
+              <div class="assign-hint">Измените состав экспертов (до ${REQUIRED_EXPERTS}) и нажмите «Обновить»:</div>
+              ${expertChecklist()}
+              <button type="submit" class="secondary">Обновить назначения</button>
+            </form>
           `;
         } else if (status === 'reviewed') {
-          const assignedExperts = work.experts ? work.experts.split(', ') : [];
           actionsHtml = `
-            <div class="expert-info">👤 Эксперты: <strong>${assignedExperts.join(', ') || 'неизвестны'}</strong></div>
             <div class="review-info">
-              <div><strong>Статус:</strong> Завершена</div>
+              <div><strong>Эксперты:</strong> ${work.experts || '—'}</div>
+              <div><strong>Оценок получено:</strong> ${reviewsCount}/${selectedIds.length || REQUIRED_EXPERTS}</div>
+              <div><a href="results.html?workId=${work.id}" target="_blank">📊 Посмотреть результаты</a></div>
             </div>
           `;
         }
@@ -321,16 +371,11 @@
         e.preventDefault();
         const form = e.target;
         const workId = form.dataset.workId;
-        // Собираем отмеченные чекбоксы
-        const checkedBoxes = form.querySelectorAll('input[name="expertIds"]:checked');
-        const expertIds = Array.from(checkedBoxes).map(cb => cb.value);
+        const expertIds = Array.from(form.querySelectorAll('input[name="expertIds"]:checked'))
+          .map(cb => Number(cb.value));
 
         if (expertIds.length === 0) {
           alert('Выберите хотя бы одного эксперта');
-          return;
-        }
-        if (expertIds.length > 3) {
-          alert('Максимум 3 эксперта');
           return;
         }
 

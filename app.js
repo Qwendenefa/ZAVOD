@@ -492,10 +492,9 @@ app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) =
     }
 
     const requiredFields = {
-        contestant_name,
         criteria_1, criteria_2, criteria_3, criteria_4, criteria_5,
         criteria_6, criteria_7, criteria_8, criteria_9, criteria_10, criteria_11,
-        general_conclusion, commission_member
+        general_conclusion
     };
     for (const [key, value] of Object.entries(requiredFields)) {
         if (value === undefined || value === null || value === '') {
@@ -513,11 +512,11 @@ app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) =
                 general_conclusion, commission_member
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                work_id, req.userId, contestant_name,
+                work_id, req.userId, contestant_name || '',
                 criteria_1, criteria_2, criteria_3, criteria_4, criteria_5,
                 criteria_6, criteria_7, criteria_8, criteria_9, criteria_10, criteria_11,
                 Number(resultativity) || 0, Number(operationality) || 0, Number(resource_intensity) || 0,
-                general_conclusion, commission_member
+                general_conclusion, commission_member || ''
             ]
         );
 
@@ -638,12 +637,10 @@ app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) =>
             criteriaDistribution,
             reviews: rows.map(r => ({
                 expert: r.expert_login,
-                contestant_name: r.contestant_name,
                 resultativity: r.resultativity,
                 operationality: r.operationality,
                 resource_intensity: r.resource_intensity,
                 general_conclusion: r.general_conclusion,
-                commission_member: r.commission_member,
                 created_at: r.created_at
             }))
         });
@@ -710,7 +707,12 @@ app.get('/admin/works', authenticate, requireAdmin, asyncHandler(async (req, res
   const works = dbAll(`
     SELECT w.*, 
            u.login as author_name,
-           GROUP_CONCAT(e.login, ', ') as experts
+           GROUP_CONCAT(e.login, ', ') as experts,
+           GROUP_CONCAT(e.id) as expert_ids,
+           (CASE WHEN w.type = 'article'
+                 THEN (SELECT COUNT(*) FROM reviews r WHERE r.work_id = w.id)
+                 ELSE (SELECT COUNT(*) FROM expert_assessments ea WHERE ea.work_id = w.id)
+            END) as reviews_count
     FROM works w
     LEFT JOIN users u ON w.user_id = u.id
     LEFT JOIN assignments a ON w.id = a.work_id
@@ -772,7 +774,8 @@ app.post('/admin/works/:id/assign', authenticate, requireAdmin, asyncHandler(asy
   // Возвращаем обновлённую информацию
   const updated = dbGet(`
     SELECT w.*, u.login as author_name,
-           GROUP_CONCAT(e.login, ', ') as experts
+           GROUP_CONCAT(e.login, ', ') as experts,
+           GROUP_CONCAT(e.id) as expert_ids
     FROM works w
     LEFT JOIN users u ON w.user_id = u.id
     LEFT JOIN assignments a ON w.id = a.work_id

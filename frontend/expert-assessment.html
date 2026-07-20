@@ -214,12 +214,6 @@
         <!-- Блок для сообщений о статусе -->
         <div id="statusMessage" style="display:none;"></div>
 
-        <!-- ФИО конкурсанта -->
-        <div class="question-group">
-          <label for="contestant_name">ФИО конкурсанта <span style="color:red;">*</span></label>
-          <input type="text" id="contestant_name" name="contestant_name" placeholder="Введите ФИО" required>
-        </div>
-
         <input type="hidden" id="work_id" name="work_id" value="">
 
         <!-- 1. Оценка качества (11 критериев — слайдеры вместо таблицы) -->
@@ -283,12 +277,6 @@
         <div class="question-group">
           <p class="question-label">3. Общее заключение о конкурсной работе</p>
           <textarea name="general_conclusion" placeholder="Введите заключение..." required></textarea>
-        </div>
-
-        <!-- Член комиссии -->
-        <div class="question-group">
-          <label for="commission_member">Член конкурсной комиссии <span style="color:red;">*</span></label>
-          <input type="text" id="commission_member" name="commission_member" placeholder="Введите ФИО члена комиссии" required>
         </div>
 
         <div class="buttons">
@@ -411,7 +399,7 @@
       const centerX = W / 2, centerY = H / 2 + 10;
       const scale = 38; // пикселей на единицу шкалы
 
-      let yaw = -0.6, pitch = 0.35;
+      let yaw = -Math.PI / 4, pitch = Math.atan(1 / Math.sqrt(2)); // классический изометрический вид — куб выглядит ровным
       let autoRotate = true;
       let dragging = false, lastX = 0, lastY = 0;
 
@@ -436,10 +424,10 @@
         let y2 = y1 * Math.cos(pitch) - z1 * Math.sin(pitch);
         let z2 = y1 * Math.sin(pitch) + z1 * Math.cos(pitch);
         let x2 = x1;
-        const persp = 1 / (1 + z2 * 0.06);
+        // Ортографическая проекция — рёбра куба остаются одинаковой длины, куб выглядит ровным
         return {
-          sx: centerX + x2 * scale * persp,
-          sy: centerY - y2 * scale * persp,
+          sx: centerX + x2 * scale,
+          sy: centerY - y2 * scale,
           depth: z2
         };
       }
@@ -531,7 +519,7 @@
       }
       const resetBtn = document.getElementById('cubeResetBtn');
       if (resetBtn) {
-        resetBtn.addEventListener('click', () => { yaw = -0.6; pitch = 0.35; });
+        resetBtn.addEventListener('click', () => { yaw = -Math.PI / 4; pitch = Math.atan(1 / Math.sqrt(2)); });
       }
     }
 

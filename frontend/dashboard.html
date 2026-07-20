@@ -288,11 +288,11 @@
           <div class="stat-label">Загружено работ</div>
         </div>
         <div class="stat-card">
-          <div class="stat-number">—</div>
+          <div class="stat-number" id="pendingCount">0</div>
           <div class="stat-label">На рецензии</div>
         </div>
         <div class="stat-card">
-          <div class="stat-number">—</div>
+          <div class="stat-number" id="reviewedCount">0</div>
           <div class="stat-label">Оценено</div>
         </div>
       </div>
@@ -382,6 +382,8 @@
       const userEmail = document.getElementById('userEmail');
       const userRole = document.getElementById('userRole');
       const worksCount = document.getElementById('worksCount');
+      const pendingCount = document.getElementById('pendingCount');
+      const reviewedCount = document.getElementById('reviewedCount');
       const currentRoleDisplay = document.getElementById('currentRoleDisplay');
       const drawerCurrentRole = document.getElementById('drawerCurrentRole');
 
@@ -446,6 +448,8 @@
         userEmail.textContent = user.email;
         updateRoleUI(user);
         worksCount.textContent = works.length;
+        reviewedCount.textContent = works.filter(w => w.status === 'reviewed').length;
+        pendingCount.textContent = works.filter(w => w.status !== 'reviewed').length;
         buildActions(user.role);
       })
       .catch(err => {

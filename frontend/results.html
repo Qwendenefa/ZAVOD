@@ -244,12 +244,6 @@
             .navigation { padding: 10px 20px; flex-direction: column; align-items: stretch; }
             nav ul { justify-content: center; gap: 15px; flex-wrap: wrap; }
         }
-        footer {
-            margin-top: 40px;
-            padding: 20px;
-            background: #f1f1f1;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
@@ -429,7 +423,7 @@
                                     ${data.reviews.map((r, i) => `
                                         <div class="legend-item">
                                             <span class="dot" style="background:${pointColor(i)};"></span>
-                                            <span>${r.expert} — ${decisionLabels[r.publication_decision] || r.publication_decision}</span>
+                                            <span>Эксперт ${i + 1} — ${decisionLabels[r.publication_decision] || r.publication_decision}</span>
                                         </div>
                                     `).join('')}
                                     <div class="category-note">
@@ -457,9 +451,9 @@
                         </div>
                         <div class="summary-card">
                             <h3>Отзывы экспертов</h3>
-                            ${data.reviews.map(r => `
+                            ${data.reviews.map((r, i) => `
                                 <div class="review-card">
-                                    <div class="review-header">${r.expert} — ${decisionLabels[r.publication_decision] || r.publication_decision}</div>
+                                    <div class="review-header">Эксперт ${i + 1} — ${decisionLabels[r.publication_decision] || r.publication_decision}</div>
                                     ${r.justification ? `<div style="margin-top:6px;">${r.justification}</div>` : ''}
                                 </div>
                             `).join('')}
@@ -495,10 +489,9 @@
                         </div>
                         <div class="summary-card">
                             <h3>Заключения экспертов</h3>
-                            ${data.reviews.map(r => `
+                            ${data.reviews.map((r, i) => `
                                 <div class="review-card">
-                                    <div class="review-header">${r.expert} (${r.commission_member})</div>
-                                    <div>Конкурсант: ${r.contestant_name}</div>
+                                    <div class="review-header">Эксперт ${i + 1}</div>
                                     <div>Результативность: ${r.resultativity}/5, Оперативность: ${r.operationality}/5, Ресурсоёмкость: ${r.resource_intensity}/5</div>
                                     <div style="margin-top:6px;">${r.general_conclusion}</div>
                                 </div>
@@ -513,7 +506,7 @@
                     // ===== ИЗМЕНЕНИЕ: УБРАЛИ ФАМИЛИЮ ИЗ ПОДПИСИ ТОЧЕК =====
                     const points = data.reviews.map((r, i) => ({
                         x: r.resultativity, y: r.operationality, z: r.resource_intensity,
-                        label: r.expert,  // теперь только имя эксперта, без (конкурсант)
+                        label: `Эксперт ${i + 1}`,
                         color: pointColor(i)
                     }));
                     const avg = data.averages;
@@ -665,7 +658,7 @@
             const centerX = W / 2, centerY = H / 2 + 10;
             const scale = 46;
 
-            let yaw = -0.6, pitch = 0.35;
+            let yaw = -Math.PI / 4, pitch = Math.atan(1 / Math.sqrt(2)); // классический изометрический вид — куб выглядит ровным
             let autoRotate = true;
             let dragging = false, lastX = 0, lastY = 0;
 
@@ -681,6 +674,33 @@
                 }
             }
 
+            // Если у нескольких точек (экспертов и/или среднего) координаты совпадают,
+            // они рисуются друг на друге и визуально пропадают. Разводим совпадения
+            // на небольшой фиксированный радиус, чтобы все точки оставались видны.
+            function spreadOverlaps(rawPoints) {
+                const groups = {};
+                rawPoints.forEach((p, idx) => {
+                    const key = `${p.x}|${p.y}|${p.z}`;
+                    (groups[key] = groups[key] || []).push(idx);
+                });
+                const spread = rawPoints.map(p => ({ ...p }));
+                const JITTER = 0.17;
+                Object.values(groups).forEach(idxs => {
+                    if (idxs.length <= 1) return;
+                    idxs.forEach((idx, k) => {
+                        const angle = (2 * Math.PI * k) / idxs.length;
+                        spread[idx].x += Math.cos(angle) * JITTER;
+                        spread[idx].y += Math.sin(angle) * JITTER;
+                        spread[idx].z += Math.cos(angle + 1.1) * JITTER * 0.7;
+                    });
+                });
+                return spread;
+            }
+
+            const allPointsRaw = points.slice();
+            if (avgPoint) allPointsRaw.push({ ...avgPoint, isAvg: true });
+            const allPointsSpread = spreadOverlaps(allPointsRaw);
+
             function project(x, y, z) {
                 let px = x - 3, py = y - 3, pz = z - 3;
                 let x1 = px * Math.cos(yaw) + pz * Math.sin(yaw);
@@ -689,10 +709,11 @@
                 let y2 = y1 * Math.cos(pitch) - z1 * Math.sin(pitch);
                 let z2 = y1 * Math.sin(pitch) + z1 * Math.cos(pitch);
                 let x2 = x1;
-                const persp = 1 / (1 + z2 * 0.06);
+                // Ортографическая проекция (без перспективного уменьшения по глубине) —
+                // рёбра куба остаются одинаковой длины и не «съезжают», куб выглядит ровным
                 return {
-                    sx: centerX + x2 * scale * persp,
-                    sy: centerY - y2 * scale * persp,
+                    sx: centerX + x2 * scale,
+                    sy: centerY - y2 * scale,
                     depth: z2
                 };
             }
@@ -730,9 +751,7 @@
                     ctx.fillText(ax.label, b.sx + 4, b.sy);
                 });
 
-                const allPoints = points.slice();
-                if (avgPoint) allPoints.push({ ...avgPoint, isAvg: true });
-                const projected = allPoints.map(p => ({ ...p, proj: project(p.x, p.y, p.z) }));
+                const projected = allPointsSpread.map(p => ({ ...p, proj: project(p.x, p.y, p.z) }));
                 projected.sort((a, b) => a.proj.depth - b.proj.depth);
 
                 projected.forEach(p => {
@@ -784,7 +803,7 @@
             }
             const resetBtn = document.getElementById('cubeResetBtn');
             if (resetBtn) {
-                resetBtn.addEventListener('click', () => { yaw = -0.6; pitch = 0.35; });
+                resetBtn.addEventListener('click', () => { yaw = -Math.PI / 4; pitch = Math.atan(1 / Math.sqrt(2)); });
             }
         }
     </script>
