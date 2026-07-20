@@ -33,7 +33,6 @@ function ensureWorksColumns() {
 
     const columnsToAdd = {
         status: "TEXT DEFAULT 'pending'",
-        assigned_expert_id: "INTEGER REFERENCES users(id)",
         rating: "INTEGER",
         review_comment: "TEXT"
     };
@@ -49,8 +48,17 @@ function ensureWorksColumns() {
         }
     }
 
+    // Удаляем устаревшую колонку assigned_expert_id, если она есть
+    if (columnNames.includes('assigned_expert_id')) {
+        try {
+            db.exec(`ALTER TABLE works DROP COLUMN assigned_expert_id`);
+            console.log('✅ Удалена устаревшая колонка assigned_expert_id');
+        } catch (err) {
+            console.warn('⚠️ Не удалось удалить колонку assigned_expert_id (возможно, она уже удалена или используется)');
+        }
+    }
+
     db.exec("CREATE INDEX IF NOT EXISTS idx_works_status ON works(status)");
-    db.exec("CREATE INDEX IF NOT EXISTS idx_works_assigned_expert ON works(assigned_expert_id)");
 }
 
 // Инициализация таблиц
@@ -75,11 +83,26 @@ const initDb = () => {
             file_path TEXT NOT NULL,
             original_name TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            status TEXT DEFAULT 'pending',
+            rating INTEGER,
+            review_comment TEXT,
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     `);
 
     ensureWorksColumns();
+
+    // ===== НОВАЯ ТАБЛИЦА ДЛЯ НАЗНАЧЕНИЙ =====
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS assignments (
+            work_id INTEGER NOT NULL,
+            expert_id INTEGER NOT NULL,
+            assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (work_id, expert_id),
+            FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE,
+            FOREIGN KEY (expert_id) REFERENCES users(id)
+        )
+    `);
 
     db.exec(`
         CREATE TABLE IF NOT EXISTS reviews (
@@ -96,7 +119,7 @@ const initDb = () => {
             justification TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(work_id, expert_id),
-            FOREIGN KEY (work_id) REFERENCES works(id),
+            FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE,
             FOREIGN KEY (expert_id) REFERENCES users(id)
         )
     `);
@@ -120,11 +143,11 @@ const initDb = () => {
             commission_member TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(work_id, expert_id),
-            FOREIGN KEY (work_id) REFERENCES works(id),
+            FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE,
             FOREIGN KEY (expert_id) REFERENCES users(id)
         )
     `);
-    console.log('✅ База данных и таблицы готовы (с миграцией works)');
+    console.log('✅ База данных и таблицы готовы (с таблицей assignments)');
 };
 initDb();
 
@@ -269,10 +292,8 @@ app.post('/api/works', authenticate, upload.single('file'), asyncHandler(async (
     if (!title || !type || !file) {
         return res.status(400).json({ error: 'Все поля обязательны' });
     }
-
-    // Проверка допустимого типа
     if (!allowedTypes.includes(type)) {
-        return res.status(400).json({ error: 'Тип работы должен быть "article" (научная статья) или "competition" (конкурсная работа)' });
+        return res.status(400).json({ error: 'Тип работы должен быть "article" или "competition"' });
     }
 
     const originalName = iconv.decode(Buffer.from(file.originalname, 'binary'), 'win1251');
@@ -294,11 +315,17 @@ app.get('/api/works/:id/file', authenticate, asyncHandler(async (req, res) => {
     res.download(row.file_path, row.original_name);
 }));
 
+// ===== ОБНОВЛЁННЫЙ ЭНДПОИНТ /api/works (возвращает статус и количество оценок) =====
 app.get('/api/works', authenticate, asyncHandler(async (req, res) => {
-    const rows = dbAll(
-        'SELECT id, title, type, original_name, created_at FROM works WHERE user_id = ? ORDER BY created_at DESC',
-        [req.userId]
-    );
+    const rows = dbAll(`
+        SELECT w.id, w.title, w.type, w.original_name, w.created_at, w.status,
+               (SELECT COUNT(*) FROM assignments WHERE work_id = w.id) as assigned_count,
+               (SELECT COUNT(*) FROM reviews WHERE work_id = w.id) + 
+               (SELECT COUNT(*) FROM expert_assessments WHERE work_id = w.id) as review_count
+        FROM works w
+        WHERE w.user_id = ?
+        ORDER BY w.created_at DESC
+    `, [req.userId]);
     res.json(rows);
 }));
 
@@ -356,6 +383,31 @@ app.get('/api/works/:id/evaluation-status', authenticate, asyncHandler(async (re
     });
 }));
 
+// ===== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЗАВЕРШЁННОСТИ ОЦЕНКИ =====
+function checkAndUpdateWorkStatus(workId) {
+    // Количество назначенных экспертов
+    const assigned = dbGet('SELECT COUNT(*) as count FROM assignments WHERE work_id = ?', [workId]);
+    const assignedCount = assigned ? assigned.count : 0;
+
+    // Количество полученных оценок (рецензии + экспертные листы)
+    const reviewCount = dbGet('SELECT COUNT(*) as count FROM reviews WHERE work_id = ?', [workId]);
+    const assessmentCount = dbGet('SELECT COUNT(*) as count FROM expert_assessments WHERE work_id = ?', [workId]);
+    const totalReviews = (reviewCount ? reviewCount.count : 0) + (assessmentCount ? assessmentCount.count : 0);
+
+    console.log(`🔍 Работа ${workId}: назначено ${assignedCount} экспертов, получено ${totalReviews} оценок`);
+
+    // Если все эксперты оценили — обновляем статус на 'reviewed'
+    if (assignedCount > 0 && totalReviews >= assignedCount) {
+        const updateResult = dbRun('UPDATE works SET status = ? WHERE id = ?', ['reviewed', workId]);
+        console.log(`✅ Работа ${workId} завершена (все ${assignedCount} экспертов оценили), статус обновлён на 'reviewed'`);
+        return true;
+    }
+    return false;
+}
+
+// ============================================================
+//  ЭНДПОИНТ /api/reviews – сохраняет рецензию и проверяет завершённость
+// ============================================================
 app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
     const {
         work_id, profile_match, article_type,
@@ -372,7 +424,13 @@ app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
     if (work.type !== 'article') return res.status(400).json({ error: 'Эта форма предназначена только для научных статей' });
     if (work.user_id === req.userId) return res.status(403).json({ error: 'Нельзя оценивать собственную работу' });
 
-    const requiredFields = { profile_match, article_type, eval_1, eval_2, eval_3, publication_decision };
+    // Проверяем, назначен ли этот эксперт
+    const assignment = dbGet('SELECT * FROM assignments WHERE work_id = ? AND expert_id = ?', [work_id, req.userId]);
+    if (!assignment) {
+        return res.status(403).json({ error: 'Вы не назначены на эту работу' });
+    }
+
+    const requiredFields = { profile_match, article_type, publication_decision };
     for (const [key, value] of Object.entries(requiredFields)) {
         if (value === undefined || value === null || value === '') {
             return res.status(400).json({ error: `Поле "${key}" обязательно для заполнения` });
@@ -391,11 +449,15 @@ app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
                 work_id, req.userId, profile_match, article_type,
                 quality_1, quality_2, quality_3, quality_4, quality_5,
                 quality_6, quality_7, quality_8, quality_9,
-                Number(eval_1), Number(eval_2), Number(eval_3),
+                Number(eval_1) || 0, Number(eval_2) || 0, Number(eval_3) || 0,
                 publication_decision, justification || null
             ]
         );
-        res.status(201).json({ id: lastID });
+
+        // Проверяем, все ли эксперты оценили
+        const completed = checkAndUpdateWorkStatus(work_id);
+
+        res.status(201).json({ id: lastID, completed });
     } catch (err) {
         if (String(err.message).includes('UNIQUE')) {
             return res.status(409).json({ error: 'Вы уже оценили эту работу' });
@@ -404,6 +466,9 @@ app.post('/api/reviews', authenticate, asyncHandler(async (req, res) => {
     }
 }));
 
+// ============================================================
+//  ЭНДПОИНТ /api/expert-assessment – сохраняет оценку конкурсной работы
+// ============================================================
 app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) => {
     const {
         work_id, contestant_name,
@@ -419,6 +484,12 @@ app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) =
     if (!work) return res.status(404).json({ error: 'Работа не найдена' });
     if (work.type !== 'competition') return res.status(400).json({ error: 'Эта форма предназначена только для конкурсных работ' });
     if (work.user_id === req.userId) return res.status(403).json({ error: 'Нельзя оценивать собственную работу' });
+
+    // Проверяем назначение
+    const assignment = dbGet('SELECT * FROM assignments WHERE work_id = ? AND expert_id = ?', [work_id, req.userId]);
+    if (!assignment) {
+        return res.status(403).json({ error: 'Вы не назначены на эту работу' });
+    }
 
     const requiredFields = {
         contestant_name,
@@ -449,7 +520,11 @@ app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) =
                 general_conclusion, commission_member
             ]
         );
-        res.status(201).json({ id: lastID });
+
+        // Проверяем завершённость
+        const completed = checkAndUpdateWorkStatus(work_id);
+
+        res.status(201).json({ id: lastID, completed });
     } catch (err) {
         if (String(err.message).includes('UNIQUE')) {
             return res.status(409).json({ error: 'Вы уже оценили эту работу' });
@@ -458,13 +533,38 @@ app.post('/api/expert-assessment', authenticate, asyncHandler(async (req, res) =
     }
 }));
 
+// ---- Получение результатов (только если все эксперты оценили) ----
 app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) => {
     const work = dbGet(
-        'SELECT w.id, w.title, w.type, w.original_name, w.user_id, u.login AS author FROM works w JOIN users u ON w.user_id = u.id WHERE w.id = ?',
+        'SELECT w.id, w.title, w.type, w.original_name, w.user_id, u.login AS author, w.status FROM works w JOIN users u ON w.user_id = u.id WHERE w.id = ?',
         [req.params.id]
     );
     if (!work) return res.status(404).json({ error: 'Работа не найдена' });
 
+    // Количество назначенных экспертов и полученных оценок
+    const assignedCount = dbGet('SELECT COUNT(*) as count FROM assignments WHERE work_id = ?', [work.id]);
+    const totalAssigned = assignedCount ? assignedCount.count : 0;
+
+    const reviewCount = dbGet('SELECT COUNT(*) as count FROM reviews WHERE work_id = ?', [work.id]);
+    const assessmentCount = dbGet('SELECT COUNT(*) as count FROM expert_assessments WHERE work_id = ?', [work.id]);
+    const totalReviews = (reviewCount ? reviewCount.count : 0) + (assessmentCount ? assessmentCount.count : 0);
+
+    const isAuthor = work.user_id === req.userId;
+    // Автор может смотреть только если все эксперты оценили
+    if (isAuthor && totalReviews < totalAssigned) {
+        return res.status(403).json({ error: 'Результаты будут доступны после завершения оценки всеми экспертами.' });
+    }
+
+    // Эксперт может видеть только если он оценил
+    const hasEvaluated = dbGet(
+        `SELECT 1 FROM ${work.type === 'article' ? 'reviews' : 'expert_assessments'} WHERE work_id = ? AND expert_id = ?`,
+        [work.id, req.userId]
+    );
+    if (!isAuthor && !hasEvaluated) {
+        return res.status(403).json({ error: 'Результаты доступны только автору или экспертам, участвовавшим в оценке.' });
+    }
+
+    // Собираем данные для отображения (как раньше)
     if (work.type === 'article') {
         const rows = dbAll(`
             SELECT r.*, u.login AS expert_login FROM reviews r
@@ -472,12 +572,6 @@ app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) =>
             WHERE r.work_id = ?
             ORDER BY r.created_at DESC
         `, [work.id]);
-
-        const isAuthor = work.user_id === req.userId;
-        const hasEvaluated = rows.some(r => r.expert_id === req.userId);
-        if (!isAuthor && !hasEvaluated) {
-            return res.status(403).json({ error: 'Результаты доступны только автору работы и экспертам, которые её оценили' });
-        }
 
         const count = rows.length;
         const avg = (field) => count ? +(rows.reduce((s, r) => s + Number(r[field]), 0) / count).toFixed(2) : null;
@@ -495,6 +589,8 @@ app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) =>
         return res.json({
             work,
             reviewsCount: count,
+            requiredExperts: totalAssigned,
+            completed: totalReviews >= totalAssigned,
             averages: { eval_1: avg('eval_1'), eval_2: avg('eval_2'), eval_3: avg('eval_3') },
             qualityDistribution,
             decisionDistribution,
@@ -519,12 +615,6 @@ app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) =>
             ORDER BY ea.created_at DESC
         `, [work.id]);
 
-        const isAuthor = work.user_id === req.userId;
-        const hasEvaluated = rows.some(r => r.expert_id === req.userId);
-        if (!isAuthor && !hasEvaluated) {
-            return res.status(403).json({ error: 'Результаты доступны только автору работы и экспертам, которые её оценили' });
-        }
-
         const count = rows.length;
         const avg = (field) => count ? +(rows.reduce((s, r) => s + Number(r[field]), 0) / count).toFixed(2) : null;
 
@@ -538,6 +628,8 @@ app.get('/api/works/:id/results', authenticate, asyncHandler(async (req, res) =>
         return res.json({
             work,
             reviewsCount: count,
+            requiredExperts: totalAssigned,
+            completed: totalReviews >= totalAssigned,
             averages: {
                 resultativity: avg('resultativity'),
                 operationality: avg('operationality'),
@@ -597,7 +689,7 @@ app.put('/auth/role', authenticate, asyncHandler(async (req, res) => {
   });
 }));
 
-// =================== АДМИН: управление работами ===================
+// =================== АДМИН ===================
 
 const requireAdmin = (req, res, next) => {
   if (req.userRole !== 'admin') {
@@ -613,58 +705,80 @@ const requireExpert = (req, res, next) => {
   next();
 };
 
-// Получить все работы (админ)
+// Получить все работы (админ) с информацией о назначенных экспертах
 app.get('/admin/works', authenticate, requireAdmin, asyncHandler(async (req, res) => {
   const works = dbAll(`
     SELECT w.*, 
-           u.login as author_name, 
-           e.login as expert_name
+           u.login as author_name,
+           GROUP_CONCAT(e.login, ', ') as experts
     FROM works w
     LEFT JOIN users u ON w.user_id = u.id
-    LEFT JOIN users e ON w.assigned_expert_id = e.id
+    LEFT JOIN assignments a ON w.id = a.work_id
+    LEFT JOIN users e ON a.expert_id = e.id
+    GROUP BY w.id
     ORDER BY w.created_at DESC
   `);
   res.json(works);
 }));
 
-// НАЗНАЧИТЬ ЭКСПЕРТА (с проверкой, что эксперт не автор)
-app.put('/admin/works/:id/assign', authenticate, requireAdmin, asyncHandler(async (req, res) => {
+// НАЗНАЧИТЬ ЭКСПЕРТОВ (принимает массив expertIds)
+app.post('/admin/works/:id/assign', authenticate, requireAdmin, asyncHandler(async (req, res) => {
   const workId = req.params.id;
-  const { expertId } = req.body;
+  const { expertIds } = req.body; // массив ID экспертов
 
-  if (!expertId) {
-    return res.status(400).json({ error: 'Не указан эксперт' });
+  if (!expertIds || !Array.isArray(expertIds) || expertIds.length === 0) {
+    return res.status(400).json({ error: 'Укажите список экспертов' });
+  }
+  if (expertIds.length > 3) {
+    return res.status(400).json({ error: 'Максимум 3 эксперта' });
   }
 
-  // Получаем работу, чтобы проверить автора
-  const work = dbGet('SELECT user_id FROM works WHERE id = ?', [workId]);
+  // Получаем работу
+  const work = dbGet('SELECT user_id, status FROM works WHERE id = ?', [workId]);
   if (!work) return res.status(404).json({ error: 'Работа не найдена' });
 
-  // Проверяем, что эксперт не является автором работы
-  if (work.user_id == expertId) {
-    return res.status(400).json({ error: 'Нельзя назначить автора работы экспертом' });
+  // Проверяем экспертов
+  const placeholders = expertIds.map(() => '?').join(',');
+  const experts = dbAll(`SELECT id, role FROM users WHERE id IN (${placeholders})`, expertIds);
+  if (experts.length !== expertIds.length) {
+    return res.status(400).json({ error: 'Один или несколько экспертов не найдены' });
+  }
+  for (const e of experts) {
+    if (e.role !== 'expert') {
+      return res.status(400).json({ error: `Пользователь с id ${e.id} не является экспертом` });
+    }
+    if (e.id == work.user_id) {
+      return res.status(400).json({ error: `Нельзя назначить автора работы экспертом (id ${e.id})` });
+    }
   }
 
-  // Проверяем, существует ли эксперт и имеет ли он роль expert
-  const expert = dbGet('SELECT id, role FROM users WHERE id = ? AND role = \'expert\'', [expertId]);
-  if (!expert) {
-    return res.status(400).json({ error: 'Эксперт не найден или не имеет роли "expert"' });
+  // Удаляем старые назначения
+  dbRun('DELETE FROM assignments WHERE work_id = ?', [workId]);
+
+  // Добавляем новые
+  const insertStmt = db.prepare('INSERT INTO assignments (work_id, expert_id) VALUES (?, ?)');
+  const insertMany = db.transaction((ids) => {
+    for (const id of ids) {
+      insertStmt.run(workId, id);
+    }
+  });
+  insertMany(expertIds);
+
+  // Обновляем статус работы на 'assigned', если он был 'pending'
+  if (work.status === 'pending') {
+    dbRun('UPDATE works SET status = ? WHERE id = ?', ['assigned', workId]);
   }
 
-  // Обновляем работу
-  const stmt = db.prepare('UPDATE works SET assigned_expert_id = ?, status = \'assigned\' WHERE id = ?');
-  const result = stmt.run(expertId, workId);
-  if (result.changes === 0) {
-    return res.status(404).json({ error: 'Работа не найдена' });
-  }
-
-  // Возвращаем обновлённую работу
+  // Возвращаем обновлённую информацию
   const updated = dbGet(`
-    SELECT w.*, u.login as author_name, e.login as expert_name
+    SELECT w.*, u.login as author_name,
+           GROUP_CONCAT(e.login, ', ') as experts
     FROM works w
     LEFT JOIN users u ON w.user_id = u.id
-    LEFT JOIN users e ON w.assigned_expert_id = e.id
+    LEFT JOIN assignments a ON w.id = a.work_id
+    LEFT JOIN users e ON a.expert_id = e.id
     WHERE w.id = ?
+    GROUP BY w.id
   `, [workId]);
   res.json(updated);
 }));
@@ -673,11 +787,9 @@ app.put('/admin/works/:id/assign', authenticate, requireAdmin, asyncHandler(asyn
 app.delete('/admin/works/:id', authenticate, requireAdmin, asyncHandler(async (req, res) => {
   const workId = req.params.id;
 
-  // Получаем информацию о работе (особенно путь к файлу)
   const work = dbGet('SELECT file_path FROM works WHERE id = ?', [workId]);
   if (!work) return res.status(404).json({ error: 'Работа не найдена' });
 
-  // Удаляем файл с диска, если он существует
   if (work.file_path && fs.existsSync(work.file_path)) {
     try {
       fs.unlinkSync(work.file_path);
@@ -687,22 +799,17 @@ app.delete('/admin/works/:id', authenticate, requireAdmin, asyncHandler(async (r
     }
   }
 
-  // Удаляем связанные записи (рецензии и экспертные оценки)
+  // Удаляем связанные записи (каскадно удалятся, но для надёжности удаляем явно)
   dbRun('DELETE FROM reviews WHERE work_id = ?', [workId]);
   dbRun('DELETE FROM expert_assessments WHERE work_id = ?', [workId]);
-
-  // Удаляем саму работу
-  const result = dbRun('DELETE FROM works WHERE id = ?', [workId]);
-  if (result.changes === 0) {
-    return res.status(404).json({ error: 'Работа не найдена' });
-  }
+  dbRun('DELETE FROM assignments WHERE work_id = ?', [workId]);
+  dbRun('DELETE FROM works WHERE id = ?', [workId]);
 
   res.json({ message: 'Работа и все связанные данные удалены' });
 }));
 
 // =================== ЭКСПЕРТ ===================
 
-// ======== ОБНОВЛЁННЫЙ ЭНДПОИНТ /expert/works с already_evaluated ========
 app.get('/expert/works', authenticate, requireExpert, asyncHandler(async (req, res) => {
   const userId = req.userId;
   const works = dbAll(`
@@ -715,46 +822,12 @@ app.get('/expert/works', authenticate, requireExpert, asyncHandler(async (req, r
            END AS already_evaluated
     FROM works w
     LEFT JOIN users u ON w.user_id = u.id
-    WHERE w.assigned_expert_id = ? AND w.status IN ('assigned', 'reviewed')
+    WHERE EXISTS (SELECT 1 FROM assignments a WHERE a.work_id = w.id AND a.expert_id = ?)
+      AND w.status IN ('assigned', 'reviewed')
     ORDER BY w.created_at DESC
   `, [userId, userId, userId]);
   res.json(works);
 }));
-// ======================================================================
-
-// ======== ИСПРАВЛЕННЫЙ ЭНДПОИНТ С ЛОГИРОВАНИЕМ ========
-app.put('/expert/works/:id/review', authenticate, requireExpert, asyncHandler(async (req, res) => {
-  const workId = req.params.id;
-  const userId = req.userId;
-  const { rating, comment } = req.body;
-
-  console.log(`🔍 Попытка оценки работы ${workId} экспертом ${userId}, rating=${rating}, comment=${comment}`);
-
-  // Проверяем, что работа назначена этому эксперту и ещё не оценена
-  const work = dbGet('SELECT * FROM works WHERE id = ? AND assigned_expert_id = ? AND status = \'assigned\'', [workId, userId]);
-  if (!work) {
-    console.log(`❌ Работа ${workId} не найдена или уже оценена`);
-    return res.status(403).json({ error: 'Работа не назначена вам или уже оценена' });
-  }
-
-  // Обновляем статус, рейтинг и комментарий
-  const stmt = db.prepare('UPDATE works SET status = \'reviewed\', rating = ?, review_comment = ? WHERE id = ?');
-  const result = stmt.run(rating || null, comment || null, workId);
-
-  console.log(`✅ Результат обновления: изменено строк = ${result.changes}`);
-
-  if (result.changes === 0) {
-    console.log(`⚠️ Не удалось обновить работу ${workId}`);
-    return res.status(404).json({ error: 'Работа не найдена' });
-  }
-
-  // Проверяем, что статус действительно изменился
-  const updatedWork = dbGet('SELECT id, status FROM works WHERE id = ?', [workId]);
-  console.log(`📌 После обновления статус работы ${workId}: ${updatedWork?.status}`);
-
-  res.json({ message: 'Оценка сохранена', workId });
-}));
-// ===================================================
 
 // ---- Получение списка пользователей (с фильтром) ----
 app.get('/api/users', authenticate, asyncHandler(async (req, res) => {

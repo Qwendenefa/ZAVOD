@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Результаты оценки — Экспертум</title>
     <link rel="stylesheet" href="index.css">
+    <!-- Подключаем FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         .results-container {
             max-width: 1000px;
@@ -204,17 +206,71 @@
         }
         .radar-legend .category-note span { display: flex; align-items: center; gap: 5px; }
         .radar-legend .category-note .sq { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+        /* --- ЕДИНАЯ ШАПКА --- */
+        .navigation {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 50px;
+            background-color: #007cba;
+            width: 100%;
+        }
+        .logo a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 24px;
+        }
+        nav ul {
+            display: flex;
+            gap: 30px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            align-items: center;
+        }
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            transition: color 0.2s;
+        }
+        nav ul li a:hover {
+            color: #2C3E8F;
+            text-decoration: underline;
+        }
+        @media (max-width: 768px) {
+            .navigation { padding: 10px 20px; flex-direction: column; align-items: stretch; }
+            nav ul { justify-content: center; gap: 15px; flex-wrap: wrap; }
+        }
+        footer {
+            margin-top: 40px;
+            padding: 20px;
+            background: #f1f1f1;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="navigation">
-            <h1 class="logo"><a href="index.html">Экспертум</a></h1>
+            <h1 class="logo">
+                <a href="index.html">Экспертум</a>
+                <svg style="fill:#007cba" width="40px" height="40px" fill="#ffffff" viewBox="-3.2 -3.2 38.40 38.40" version="1.1" xmlns="http://www.w3.org/2000/svg" transform="matrix(1, 0, 0, 1, 0, 0)rotate(0)">
+                    <g id="SVGRepo_bgCarrier" stroke-width="0">
+                        <path transform="translate(-3.2, -3.2), scale(2.4)" fill="#ffffff" d="M9.166.33a2.25 2.25 0 00-2.332 0l-5.25 3.182A2.25 2.25 0 00.5 5.436v5.128a2.25 2.25 0 001.084 1.924l5.25 3.182a2.25 2.25 0 002.332 0l5.25-3.182a2.25 2.25 0 001.084-1.924V5.436a2.25 2.25 0 00-1.084-1.924L9.166.33z" strokewidth="0"/>
+                    </g>
+                    <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/>
+                    <g id="SVGRepo_iconCarrier">
+                        <title>alt-book</title>
+                        <path d="M0 26.016q0 0.832 0.576 1.408t1.44 0.576q1.92 0.096 3.808 0.288t4.352 0.736 3.904 1.28q0.096 0.736 0.64 1.216t1.28 0.48 1.28-0.48 0.672-1.216q1.44-0.736 3.872-1.28t4.352-0.736 3.84-0.288q0.8 0 1.408-0.576t0.576-1.408v-24q0-0.832-0.576-1.408t-1.408-0.608q-0.032 0-0.096 0.032t-0.128 0q-9.504 0.256-12.672 2.528-1.024 0.768-1.12 1.44l-0.096-0.32q-0.576-1.28-3.168-2.176-3.648-1.28-10.528-1.472-0.064 0-0.128 0t-0.064-0.032q-0.832 0-1.44 0.608t-0.576 1.408v24zM4 24.128v-19.936q6.88 0.512 10.016 2.080v19.744q-3.104-1.536-10.016-1.888zM6.016 20q0.096 0 0.32 0.032t0.832 0.032 1.216 0.096 1.248 0.224 1.184 0.352 0.832 0.544 0.352 0.736v-4q0-0.096-0.032-0.224t-0.352-0.48-0.896-0.608-1.792-0.48-2.912-0.224v4zM6.016 12q0.096 0 0.32 0.032t0.832 0.032 1.216 0.096 1.248 0.224 1.184 0.352 0.832 0.544 0.352 0.736v-4q0-0.096-0.032-0.224t-0.352-0.48-0.896-0.608-1.792-0.48-2.912-0.224v4zM18.016 26.016v-19.744q3.104-1.568 9.984-2.080v19.936q-6.912 0.352-9.984 1.888zM20 22.016q0-0.576 0.608-0.992t1.504-0.576 1.76-0.288 1.504-0.128l0.64-0.032v-4q-1.696 0-2.944 0.224t-1.792 0.48-0.864 0.608-0.384 0.512l-0.032 0.192v4zM20 14.016q0-0.576 0.608-0.992t1.504-0.576 1.76-0.288 1.504-0.128l0.64-0.032v-4q-1.696 0-2.944 0.224t-1.792 0.48-0.864 0.608-0.384 0.512l-0.032 0.192v4z"/>
+                    </g>
+                </svg>
+            </h1>
             <nav>
-                <ul>
-                    <li><a href="dashboard.html">Личный кабинет</a></li>
-                    <li><a href="works-list.html">Все работы</a></li>
-                    <li><a href="#" id="logoutLink">Выйти</a></li>
+                <ul id="navMenu">
+                    <!-- заполняется скриптом -->
                 </ul>
             </nav>
         </div>
@@ -224,7 +280,6 @@
         <div class="results-container">
             <h2>📊 Результаты оценки</h2>
             <div id="resultsContent"><div style="text-align:center; padding: 40px;">Загрузка...</div></div>
-            <!-- ИЗМЕНЕНО: ссылка теперь ведёт на назначенные работы эксперта -->
             <a href="expert-works.html" class="back-link">← Вернуться к моим назначенным работам</a>
         </div>
     </main>
@@ -235,6 +290,30 @@
     </footer>
 
     <script>
+        // ======== УНИФИЦИРОВАННАЯ НАВИГАЦИЯ ========
+        (function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const navMenu = document.getElementById('navMenu');
+            navMenu.innerHTML = `
+                <li><a href="index.html"><i class="fas fa-home"></i> Главная</a></li>
+                <li><a href="dashboard.html"><i class="fas fa-user"></i> Личный кабинет</a></li>
+                <li><a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Выйти</a></li>
+            `;
+
+            document.getElementById('logoutLink').addEventListener('click', (e) => {
+                e.preventDefault();
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = 'index.html';
+            });
+        })();
+
+        // ======== ОСНОВНАЯ ЛОГИКА РЕЗУЛЬТАТОВ ========
         const qualityLabels = {
             quality_1: 'Актуальность проблематики / работы',
             quality_2: 'Новизна материала',
@@ -278,13 +357,6 @@
                 window.location.href = 'login.html';
                 return;
             }
-
-            document.getElementById('logoutLink').addEventListener('click', (e) => {
-                e.preventDefault();
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                window.location.href = 'index.html';
-            });
 
             const params = new URLSearchParams(window.location.search);
             const workId = params.get('workId');
@@ -350,14 +422,6 @@
                 if (data.work.type === 'article') {
                     html += `
                         <div class="summary-card">
-                            <h3>Средние оценки</h3>
-                            <div class="stat-row">
-                                <div class="stat-box"><div class="value">${data.averages.eval_1 ?? '—'}</div><div class="label">Научная новизна</div></div>
-                                <div class="stat-box"><div class="value">${data.averages.eval_2 ?? '—'}</div><div class="label">Актуальность темы</div></div>
-                                <div class="stat-box"><div class="value">${data.averages.eval_3 ?? '—'}</div><div class="label">Практическая ценность</div></div>
-                            </div>
-                        </div>
-                        <div class="summary-card">
                             <h3>Лепестковая диаграмма по всем критериям</h3>
                             <div class="radar-wrap">
                                 <div class="radar-svg-box">${buildRadarChartSVG(data.reviews)}</div>
@@ -370,7 +434,6 @@
                                     `).join('')}
                                     <div class="category-note">
                                         <span><span class="sq" style="background:#035680;"></span>критерии качества (9)</span>
-                                        <span><span class="sq" style="background:#8e44ad;"></span>итоговые оценки (3)</span>
                                     </div>
                                 </div>
                             </div>
@@ -397,7 +460,6 @@
                             ${data.reviews.map(r => `
                                 <div class="review-card">
                                     <div class="review-header">${r.expert} — ${decisionLabels[r.publication_decision] || r.publication_decision}</div>
-                                    <div>Новизна: ${r.eval_1}/5, Актуальность: ${r.eval_2}/5, Практическая ценность: ${r.eval_3}/5</div>
                                     ${r.justification ? `<div style="margin-top:6px;">${r.justification}</div>` : ''}
                                 </div>
                             `).join('')}
@@ -448,9 +510,10 @@
                 container.innerHTML = html;
 
                 if (data.work.type !== 'article') {
+                    // ===== ИЗМЕНЕНИЕ: УБРАЛИ ФАМИЛИЮ ИЗ ПОДПИСИ ТОЧЕК =====
                     const points = data.reviews.map((r, i) => ({
                         x: r.resultativity, y: r.operationality, z: r.resource_intensity,
-                        label: `${r.expert} (${r.contestant_name})`,
+                        label: r.expert,  // теперь только имя эксперта, без (конкурсант)
                         color: pointColor(i)
                     }));
                     const avg = data.averages;
@@ -468,13 +531,10 @@
         })();
 
         // ===================== 3D-КУБ (результативность / оперативность / ресурсоёмкость) =====================
-        // Лёгкая ручная 3D-проекция на <canvas>, без внешних библиотек.
-        // Каждая ось имеет диапазон 1..5 (как в шкалах экспертного листа).
-
         const CUBE_PALETTE = ['#007cba', '#28a745', '#e67e22', '#8e44ad', '#c0392b', '#16a085', '#2c3e50', '#d35400'];
         function pointColor(i) { return CUBE_PALETTE[i % CUBE_PALETTE.length]; }
 
-        // ===================== ЛЕПЕСТКОВАЯ (РАДАРНАЯ) ДИАГРАММА ПО ВСЕМ КРИТЕРИЯМ СТАТЬИ =====================
+        // ===================== ЛЕПЕСТКОВАЯ (РАДАРНАЯ) ДИАГРАММА =====================
         function escapeXml(s) {
             return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
         }
@@ -484,7 +544,6 @@
         function buildRadarChartSVG(reviews) {
             if (!reviews || reviews.length === 0) return '<div class="empty-state">Нет данных для диаграммы</div>';
 
-            // Короткие подписи для осей (полный текст остаётся в title-подсказке при наведении)
             const shortLabels = {
                 quality_1: 'Актуальность',
                 quality_2: 'Новизна',
@@ -494,21 +553,14 @@
                 quality_6: 'Практ. польза',
                 quality_7: 'Источники',
                 quality_8: 'Аннотация',
-                quality_9: 'Оформление',
-                eval_1: 'Науч. новизна',
-                eval_2: 'Акт. темы',
-                eval_3: 'Ценность'
+                quality_9: 'Оформление'
             };
 
-            // 12 осей: 9 критериев качества (0..3) + 3 итоговые оценки (1..5), приведённые к общей шкале 0..1
             const axisDefs = [];
             Object.keys(qualityLabels).forEach(k => axisDefs.push({
                 key: k, label: qualityLabels[k], short: shortLabels[k], category: 'quality',
                 getPct: (r) => qualityToNum(r[k]) / 3
             }));
-            axisDefs.push({ key: 'eval_1', label: 'Научная новизна (итоговая оценка)', short: shortLabels.eval_1, category: 'eval', getPct: (r) => (r.eval_1 - 1) / 4 });
-            axisDefs.push({ key: 'eval_2', label: 'Актуальность темы (итоговая оценка)', short: shortLabels.eval_2, category: 'eval', getPct: (r) => (r.eval_2 - 1) / 4 });
-            axisDefs.push({ key: 'eval_3', label: 'Практическая ценность (итоговая оценка)', short: shortLabels.eval_3, category: 'eval', getPct: (r) => (r.eval_3 - 1) / 4 });
 
             const N = axisDefs.length;
             const size = 620, center = size / 2, maxR = size / 2 - 150;
@@ -531,7 +583,6 @@
                 return `<line x1="${center}" y1="${center}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="#c7d9e6" stroke-width="1"/>`;
             }).join('');
 
-            // Подписи осей: короткий текст + полупрозрачная подложка для контраста + <title> с полным текстом
             const labels = axisDefs.map((ax, i) => {
                 const p = pointFor(i, 1.2);
                 const cos = Math.cos(p.angle);
@@ -540,12 +591,11 @@
                 if (cos > 0.15) anchor = 'start';
                 else if (cos < -0.15) anchor = 'end';
 
-                // Смещаем текст по вертикали, чтобы не наезжал на конец спицы
                 let dy = 4;
                 if (anchor === 'middle') dy = sin < 0 ? -6 : 14;
 
-                const fill = ax.category === 'eval' ? '#6b2d8c' : '#024268';
-                const chipFill = ax.category === 'eval' ? '#f3e8fb' : '#e3f0f8';
+                const fill = '#024268';
+                const chipFill = '#e3f0f8';
 
                 const textW = ax.short.length * (FONT_SIZE * 0.58) + 12;
                 const textH = FONT_SIZE + 8;
@@ -613,13 +663,12 @@
             const ctx = canvas.getContext('2d');
             const W = canvas.width, H = canvas.height;
             const centerX = W / 2, centerY = H / 2 + 10;
-            const scale = 46; // пикселей на единицу шкалы
+            const scale = 46;
 
             let yaw = -0.6, pitch = 0.35;
             let autoRotate = true;
             let dragging = false, lastX = 0, lastY = 0;
 
-            // Вершины куба по осям 1..5 (центр в 3)
             const lo = 1 - 3, hi = 5 - 3;
             const cubeVertices = [];
             for (const x of [lo, hi]) for (const y of [lo, hi]) for (const z of [lo, hi]) cubeVertices.push([x, y, z]);
@@ -633,17 +682,13 @@
             }
 
             function project(x, y, z) {
-                // Центрируем относительно середины шкалы (значение 3)
                 let px = x - 3, py = y - 3, pz = z - 3;
-                // Вращение вокруг оси Y (yaw)
                 let x1 = px * Math.cos(yaw) + pz * Math.sin(yaw);
                 let z1 = -px * Math.sin(yaw) + pz * Math.cos(yaw);
                 let y1 = py;
-                // Вращение вокруг оси X (pitch)
                 let y2 = y1 * Math.cos(pitch) - z1 * Math.sin(pitch);
                 let z2 = y1 * Math.sin(pitch) + z1 * Math.cos(pitch);
                 let x2 = x1;
-                // Небольшая перспектива по глубине
                 const persp = 1 / (1 + z2 * 0.06);
                 return {
                     sx: centerX + x2 * scale * persp,
@@ -655,7 +700,6 @@
             function draw() {
                 ctx.clearRect(0, 0, W, H);
 
-                // Рёбра куба
                 ctx.strokeStyle = '#a9c6dd';
                 ctx.lineWidth = 1.2;
                 edges.forEach(([i, j]) => {
@@ -667,7 +711,6 @@
                     ctx.stroke();
                 });
 
-                // Оси координат со стрелками и подписями
                 const axes = [
                     { from: [1, 1, 1], to: [5.6, 1, 1], label: 'Результативность', color: '#035680' },
                     { from: [1, 1, 1], to: [1, 5.6, 1], label: 'Оперативность', color: '#035680' },
@@ -687,7 +730,6 @@
                     ctx.fillText(ax.label, b.sx + 4, b.sy);
                 });
 
-                // Точки-оценки, отсортированные по глубине (дальние — раньше)
                 const allPoints = points.slice();
                 if (avgPoint) allPoints.push({ ...avgPoint, isAvg: true });
                 const projected = allPoints.map(p => ({ ...p, proj: project(p.x, p.y, p.z) }));

@@ -50,16 +50,27 @@
     }
     .assign-form {
       display: flex;
+      flex-wrap: wrap;
       gap: 10px;
       align-items: center;
-      flex-wrap: wrap;
     }
-    .assign-form select {
-      padding: 6px 12px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
+    .assign-form .expert-checkboxes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 15px;
+      align-items: center;
+    }
+    .assign-form .expert-checkboxes label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
       font-size: 14px;
-      min-width: 180px;
+    }
+    .assign-form .expert-checkboxes input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
     }
     .assign-form button {
       background: #007cba;
@@ -72,8 +83,6 @@
       transition: background 0.2s;
     }
     .assign-form button:hover { background: #005f8a; }
-    .assign-form button.secondary { background: #6c757d; }
-    .assign-form button.secondary:hover { background: #5a6268; }
     .delete-btn {
       background: #dc3545;
       color: white;
@@ -100,6 +109,7 @@
     .expert-info { background: #e9ecef; padding: 4px 10px; border-radius: 4px; display: inline-block; }
     .review-info { margin-top: 8px; background: #f8f9fa; padding: 10px; border-radius: 4px; }
     .review-info strong { display: inline-block; min-width: 60px; }
+    .hint { font-size: 13px; color: #666; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -144,7 +154,6 @@
 
       const container = document.getElementById('worksContainer');
 
-      // Функция для красивого отображения типа
       function getTypeName(type) {
         return type === 'article' ? 'Научная статья' :
                type === 'competition' ? 'Конкурсная работа' :
@@ -188,7 +197,7 @@
 
         let html = '';
 
-        // ---- Секция: Ожидают распределения ----
+        // ---- Ожидают распределения ----
         html += `<div class="section-title">
           <span>📌 Ожидают распределения</span>
           <span class="count">${pending.length}</span>
@@ -201,7 +210,7 @@
           });
         }
 
-        // ---- Секция: Распределены ----
+        // ---- Распределены ----
         html += `<div class="section-title" style="border-bottom-color:#17a2b8;">
           <span>👥 Распределены экспертам</span>
           <span class="count">${assigned.length}</span>
@@ -214,7 +223,7 @@
           });
         }
 
-        // ---- Секция: Оценены ----
+        // ---- Оценены ----
         html += `<div class="section-title" style="border-bottom-color:#28a745;">
           <span>⭐ Оценены</span>
           <span class="count">${reviewed.length}</span>
@@ -250,42 +259,41 @@
           'reviewed': 'Оценена'
         };
 
-        // Используем функцию для красивого отображения типа
         const typeDisplay = getTypeName(work.type);
 
         let actionsHtml = '';
 
-        if (status === 'pending') {
+        if (status === 'pending' || status === 'assigned') {
+          // Список уже назначенных экспертов (логины)
+          const assignedExperts = work.experts ? work.experts.split(', ') : [];
+
+          // Строим чекбоксы для каждого эксперта
+          const checkboxesHtml = experts.map(e => {
+            const checked = assignedExperts.includes(e.login) ? 'checked' : '';
+            return `
+              <label>
+                <input type="checkbox" name="expertIds" value="${e.id}" ${checked}>
+                ${e.login}
+              </label>
+            `;
+          }).join('');
+
           actionsHtml = `
             <form class="assign-form" data-work-id="${work.id}">
-              <select name="expert" required>
-                <option value="">-- Выберите эксперта --</option>
-                ${experts.map(e => `<option value="${e.id}">${e.login}</option>`).join('')}
-              </select>
-              <button type="submit">Назначить</button>
+              <div class="expert-checkboxes">
+                ${checkboxesHtml}
+                <span class="hint" style="margin-left:5px;">(выберите до 3-х экспертов)</span>
+              </div>
+              <button type="submit">${status === 'pending' ? 'Назначить' : 'Переназначить'}</button>
             </form>
-          `;
-        } else if (status === 'assigned') {
-          const expertName = work.expert_name || 'неизвестен';
-          actionsHtml = `
-            <div class="expert-info">👤 Назначен: <strong>${expertName}</strong></div>
-            <form class="assign-form" data-work-id="${work.id}">
-              <select name="expert">
-                <option value="">-- Переназначить --</option>
-                ${experts.map(e => `<option value="${e.id}" ${e.id == work.assigned_expert_id ? 'selected' : ''}>${e.login}</option>`).join('')}
-              </select>
-              <button type="submit" class="secondary">Переназначить</button>
-            </form>
+            ${assignedExperts.length > 0 ? `<div class="expert-info">👤 Назначены: <strong>${assignedExperts.join(', ')}</strong></div>` : ''}
           `;
         } else if (status === 'reviewed') {
-          const expertName = work.expert_name || 'неизвестен';
-          const rating = work.rating || '—';
-          const comment = work.review_comment || 'Нет комментария';
+          const assignedExperts = work.experts ? work.experts.split(', ') : [];
           actionsHtml = `
+            <div class="expert-info">👤 Эксперты: <strong>${assignedExperts.join(', ') || 'неизвестны'}</strong></div>
             <div class="review-info">
-              <div><strong>Эксперт:</strong> ${expertName}</div>
-              <div><strong>Оценка:</strong> ${rating} / 10</div>
-              <div><strong>Рецензия:</strong> ${comment}</div>
+              <div><strong>Статус:</strong> Завершена</div>
             </div>
           `;
         }
@@ -313,20 +321,27 @@
         e.preventDefault();
         const form = e.target;
         const workId = form.dataset.workId;
-        const expertId = form.querySelector('select[name="expert"]').value;
-        if (!expertId) {
-          alert('Выберите эксперта');
+        // Собираем отмеченные чекбоксы
+        const checkedBoxes = form.querySelectorAll('input[name="expertIds"]:checked');
+        const expertIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (expertIds.length === 0) {
+          alert('Выберите хотя бы одного эксперта');
+          return;
+        }
+        if (expertIds.length > 3) {
+          alert('Максимум 3 эксперта');
           return;
         }
 
         try {
           const res = await fetch(`/admin/works/${workId}/assign`, {
-            method: 'PUT',
+            method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ expertId })
+            body: JSON.stringify({ expertIds })
           });
           if (!res.ok) {
             const err = await res.json();

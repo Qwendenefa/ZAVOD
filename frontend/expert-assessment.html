@@ -8,61 +8,205 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    /* все стили такие же, как в предыдущем коде (скопируйте их) */
+    :root {
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --blue-darker: #1e3a8a;
+      --blue-light: #eff6ff;
+      --blue-soft: #dbeafe;
+      --grey-50: #f8fafc;
+      --grey-100: #f1f5f9;
+      --grey-200: #e2e8f0;
+      --grey-300: #cbd5e1;
+      --grey-500: #64748b;
+      --grey-700: #334155;
+      --grey-900: #0f172a;
+      --white: #ffffff;
+      --red: #ef4444;
+      --radius: 16px;
+      --shadow-card: 0 10px 40px -12px rgba(30, 58, 138, 0.18), 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Work Sans', sans-serif; background: #f4f7fb; padding: 20px; }
-    .questionnaire { max-width: 900px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 30px 35px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-    .expert-header { text-align: center; font-size: 26px; font-weight: 700; color: #035680; margin-bottom: 4px; }
-    .expert-subheader { text-align: center; font-size: 17px; color: #035680; margin-bottom: 20px; font-weight: 500; }
-    hr { margin: 20px 0; border: 1px solid #e5e9f0; }
-    .question-group { margin-bottom: 25px; }
-    .question-group label { font-weight: 600; color: #035680; font-size: 16px; display: block; margin-bottom: 5px; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Work Sans', sans-serif;
+      color: var(--grey-900);
+      min-height: 100vh;
+      padding: 40px 16px 60px;
+      background:
+        radial-gradient(900px 500px at 12% -8%, var(--blue-soft) 0%, transparent 60%),
+        radial-gradient(700px 500px at 105% 10%, #e0e7ff 0%, transparent 55%),
+        linear-gradient(180deg, var(--grey-50) 0%, #eef2f9 100%);
+      background-attachment: fixed;
+      position: relative;
+    }
+    body::before, body::after {
+      content: ""; position: fixed; border-radius: 50%; filter: blur(60px); opacity: 0.35; z-index: 0; pointer-events: none;
+    }
+    body::before { width: 380px; height: 380px; top: -120px; left: -120px; background: radial-gradient(circle, var(--blue) 0%, transparent 70%); }
+    body::after { width: 420px; height: 420px; bottom: -140px; right: -140px; background: radial-gradient(circle, #60a5fa 0%, transparent 70%); }
+
+    .questionnaire {
+      position: relative; z-index: 1;
+      max-width: 920px; margin: 0 auto;
+      background: var(--white);
+      border-radius: 24px;
+      padding: 0 0 36px;
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      animation: cardIn .5s cubic-bezier(.2,.8,.2,1);
+    }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+    .expert-header {
+      margin: 0; padding: 34px 36px 6px; font-size: 26px; font-weight: 700; text-align: center;
+      color: var(--white);
+      background: linear-gradient(135deg, var(--blue-darker) 0%, var(--blue) 60%, #3b82f6 100%);
+    }
+    .expert-subheader {
+      text-align: center; font-size: 15px; font-weight: 500; color: var(--blue-light);
+      background: linear-gradient(135deg, var(--blue-darker) 0%, var(--blue) 60%, #3b82f6 100%);
+      padding: 0 36px 26px; margin: 0;
+    }
+
+    .questionnaire form { padding: 0 36px; }
+
+    hr { border: none; border-top: 1px solid var(--grey-200); margin: 22px 0; }
+
+    .question-group {
+      margin-bottom: 28px; padding: 20px 22px;
+      background: var(--grey-50); border: 1px solid var(--grey-100); border-radius: var(--radius);
+      animation: fadeUp .5s ease both;
+    }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .question-group label { font-weight: 600; color: var(--blue-darker); font-size: 16px; display: block; margin-bottom: 8px; }
     .question-group input[type="text"], .question-group textarea, .question-group select {
-      width: 100%; padding: 10px 14px; border: 1px solid #d0d7e2; border-radius: 8px; font-size: 15px; font-family: inherit; transition: border 0.2s;
+      width: 100%; padding: 12px 14px; border: 1.5px solid var(--grey-300); border-radius: 10px;
+      font-size: 15px; font-family: inherit; background: var(--white); transition: border-color .18s, box-shadow .18s;
     }
     .question-group input[type="text"]:focus, .question-group textarea:focus {
-      border-color: #007cba; outline: none; box-shadow: 0 0 0 3px rgba(0,124,186,0.12);
+      border-color: var(--blue); outline: none; box-shadow: 0 0 0 4px rgba(37,99,235,0.14);
     }
-    .question-group textarea { min-height: 100px; resize: vertical; }
-    .question-label { font-weight: 600; font-size: 18px; color: #035680; margin-bottom: 12px; }
-    .table-scroll { overflow-x: auto; margin-top: 8px; }
-    .quality-table { width: 100%; border-collapse: collapse; font-size: 14px; background: #fafcfe; border-radius: 8px; overflow: hidden; }
-    .quality-table th { background: #e8edf5; color: #1a4d6b; padding: 10px 8px; text-align: center; font-weight: 600; border: 1px solid #dce3ec; }
-    .quality-table td { padding: 8px 6px; border: 1px solid #dce3ec; text-align: center; vertical-align: middle; }
-    .quality-table td:first-child { font-weight: 600; color: #1a4d6b; width: 40px; }
-    .quality-table td:nth-child(2) { text-align: left; padding-left: 12px; min-width: 200px; }
-    .quality-table input[type="radio"] { width: 16px; height: 16px; cursor: pointer; accent-color: #007cba; }
-    .eval-item { display: flex; align-items: center; gap: 20px; margin-bottom: 14px; background: #f8fafc; padding: 10px 18px; border-radius: 8px; flex-wrap: wrap; }
-    .eval-item span:first-child { min-width: 140px; font-weight: 500; display: flex; align-items: center; gap: 6px; color: #1a4d6b; }
-    .slider-container { display: flex; align-items: center; gap: 15px; flex: 1; min-width: 200px; }
-    input[type="range"] { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; background: #d0d7e2; border-radius: 3px; outline: none; }
-    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #007cba; cursor: pointer; }
-    input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #007cba; cursor: pointer; border: none; }
-    .slider-value { font-weight: 700; font-size: 18px; min-width: 28px; text-align: center; color: #035680; }
-    .help-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: #007cba; color: #fff; border-radius: 50%; font-size: 12px; font-weight: 700; cursor: help; position: relative; flex-shrink: 0; }
-    .help-icon:hover::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #1a2b3c; color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 400; white-space: nowrap; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
-    .help-icon:hover::before { content: ''; position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #1a2b3c; z-index: 10; }
-    .buttons { display: flex; justify-content: flex-end; gap: 15px; margin-top: 25px; align-items: center; }
-    .submit-button { background: #007cba; color: #fff; border: none; padding: 12px 36px; border-radius: 8px; font-size: 17px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-    .submit-button:hover { background: #005f8a; }
-    .submit-button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .warning { background: #fff3cd; color: #856404; padding: 15px 20px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 15px; font-size: 15px; }
-    .warning a { color: #007cba; font-weight: 600; }
+    .question-group textarea { min-height: 110px; resize: vertical; }
+    .question-label { font-weight: 600; font-size: 17px; color: var(--blue-darker); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+    /* ---------- Слайдеры-критерии (замена таблицы) ---------- */
+    .criteria-list { display: flex; flex-direction: column; gap: 14px; }
+    .criterion-item {
+      background: var(--white); border: 1.5px solid var(--grey-200); border-radius: 14px;
+      padding: 16px 18px 14px; transition: border-color .2s, box-shadow .2s;
+    }
+    .criterion-item:hover { border-color: var(--grey-300); box-shadow: 0 4px 14px -8px rgba(15,23,42,.12); }
+    .criterion-top { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+    .criterion-num {
+      flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+      background: var(--blue-light); color: var(--blue-dark); font-weight: 700; font-size: 13px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .criterion-text { font-weight: 500; color: var(--grey-900); font-size: 15px; flex: 1; }
+    .criterion-current {
+      font-weight: 700; font-size: 13px; padding: 3px 12px; border-radius: 999px;
+      background: var(--grey-100); color: var(--grey-700); white-space: nowrap; transition: background .2s, color .2s;
+    }
+    .slider-row { position: relative; padding: 4px 2px 0; }
+    input[type="range"].grad-slider {
+      -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 999px;
+      background: var(--grey-200); outline: none; cursor: pointer;
+    }
+    input[type="range"].grad-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border-radius: 50%;
+      background: var(--white); border: 4px solid var(--thumb-color, var(--red));
+      box-shadow: 0 2px 8px rgba(15,23,42,.25); cursor: pointer; margin-top: -1px; transition: border-color .15s;
+    }
+    input[type="range"].grad-slider::-moz-range-thumb {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--white);
+      border: 4px solid var(--thumb-color, var(--red)); box-shadow: 0 2px 8px rgba(15,23,42,.25);
+      cursor: pointer; transition: border-color .15s;
+    }
+    input[type="range"].grad-slider::-moz-range-track { background: transparent; }
+    .slider-ticks { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--grey-500); font-weight: 500; }
+    .slider-ticks span { transition: color .2s, font-weight .2s; flex: 1; text-align: center; }
+    .slider-ticks span:first-child { text-align: left; }
+    .slider-ticks span:last-child { text-align: right; }
+    .slider-ticks span.active { color: var(--blue-dark); font-weight: 700; }
+
+    .help-icon {
+      display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+      background: var(--blue); color: #fff; border-radius: 50%; font-size: 12px; font-weight: 700;
+      cursor: help; position: relative; flex-shrink: 0;
+    }
+    .help-icon:hover::after {
+      content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+      background: var(--grey-900); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 400;
+      white-space: normal; width: 220px; z-index: 10; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+    }
+    .help-icon:hover::before {
+      content: ''; position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%);
+      border: 6px solid transparent; border-top-color: var(--grey-900); z-index: 10;
+    }
+
+    .cube-intro { font-size: 13.5px; color: var(--grey-500); margin: -8px 0 14px; }
+    .cube-sliders { margin-bottom: 18px; }
+    .cube-wrap { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-top: 6px; }
+    .cube-canvas-box { position: relative; flex-shrink: 0; }
+    #assessCube {
+      background: linear-gradient(180deg, var(--grey-50) 0%, var(--blue-light) 100%);
+      border-radius: 12px;
+      border: 1px solid var(--grey-200);
+      cursor: grab;
+      touch-action: none;
+      max-width: 100%;
+    }
+    #assessCube:active { cursor: grabbing; }
+    .cube-controls { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .cube-controls button {
+      background: var(--blue-light);
+      border: 1px solid var(--grey-200);
+      color: var(--blue-darker);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all .15s ease;
+    }
+    .cube-controls button:hover { background: var(--blue-soft); }
+    .cube-controls button.active { background: var(--blue); color: #fff; border-color: var(--blue-dark); }
+    .cube-legend { flex: 1; min-width: 200px; font-size: 0.9rem; padding-top: 6px; }
+    .cube-legend .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: var(--grey-700); }
+    .cube-legend .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .cube-hint { font-size: 0.8rem; color: var(--grey-500); margin-top: 8px; }
+
+    .buttons { display: flex; justify-content: flex-end; gap: 15px; margin-top: 8px; align-items: center; }
+    .submit-button {
+      background: linear-gradient(135deg, var(--blue) 0%, var(--blue-darker) 100%); color: #fff; border: none;
+      padding: 13px 40px; border-radius: 999px; font-size: 16px; font-weight: 600; cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease; box-shadow: 0 8px 20px -8px rgba(37,99,235,.6);
+    }
+    .submit-button:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -6px rgba(37,99,235,.65); }
+    .submit-button:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
+
+    .warning { background: #fffbeb; color: #92400e; padding: 15px 20px; border-radius: 12px; border: 1px solid #fde68a; margin-bottom: 18px; font-size: 14.5px; }
+    .warning a { color: var(--blue-dark); font-weight: 600; }
     .warning a:hover { text-decoration: underline; }
-    .error-msg { background: #f8d7da; color: #721c24; padding: 15px 20px; border-radius: 8px; border: 1px solid #f5c6cb; margin-bottom: 15px; }
+    .error-msg { background: #fef2f2; color: #991b1b; padding: 15px 20px; border-radius: 12px; border: 1px solid #fecaca; margin-bottom: 18px; font-size: 14.5px; }
     #message { margin-top: 15px; text-align: center; font-size: 15px; font-weight: 500; }
     #work_id { display: none; }
-    @media (max-width: 640px) { .questionnaire { padding: 20px 16px; } .eval-item { flex-direction: column; align-items: stretch; gap: 8px; } .eval-item span:first-child { min-width: unset; } .buttons { justify-content: center; flex-wrap: wrap; } }
+    @media (max-width: 640px) {
+      .questionnaire form { padding: 0 18px; }
+      .expert-header { padding: 26px 20px 6px; font-size: 22px; }
+      .expert-subheader { padding: 0 20px 20px; }
+      .buttons { justify-content: center; flex-wrap: wrap; }
+    }
   </style>
 </head>
 <body>
   <main>
     <div class="questionnaire">
+      <h1 class="expert-header">🏆 ЭКСПЕРТНЫЙ ЛИСТ</h1>
+      <p class="expert-subheader">Конкурса научно-технических работ в АО «НПО «Обуховский завод»</p>
       <form id="expertForm" action="/api/expert-assessment" method="POST">
-        <h1 class="expert-header">ЭКСПЕРТНЫЙ ЛИСТ</h1>
-        <p class="expert-subheader">Конкурса научно-технических работ в АО «НПО «Обуховский завод»</p>
-        <hr>
-
         <div id="workIdWarning" class="warning" style="display:none;">
           ⚠️ <strong>Внимание:</strong> ID работы не указан. Страница открыта в режиме просмотра. Для отправки формы передайте параметр <code>?workId=123</code>.
         </div>
@@ -78,54 +222,60 @@
 
         <input type="hidden" id="work_id" name="work_id" value="">
 
-        <!-- 1. Оценка качества (11 критериев) -->
+        <!-- 1. Оценка качества (11 критериев — слайдеры вместо таблицы) -->
         <div class="question-group">
           <p class="question-label">1. Оценка качества конкурсной работы</p>
-          <div class="table-scroll">
-            <table class="quality-table">
-              <thead>
-                <tr><th>№</th><th>Критерий</th><th>Нет</th><th>Низкая</th><th>Средняя</th><th>Высокая</th></tr>
-              </thead>
-              <tbody>
-                <tr><td>1</td><td>Актуальность работы</td><td><input type="radio" name="criteria_1" value="нет" required></td><td><input type="radio" name="criteria_1" value="низкая"></td><td><input type="radio" name="criteria_1" value="средняя"></td><td><input type="radio" name="criteria_1" value="высокая"></td></tr>
-                <tr><td>2</td><td>Востребованность работы в Обществе</td><td><input type="radio" name="criteria_2" value="нет" required></td><td><input type="radio" name="criteria_2" value="низкая"></td><td><input type="radio" name="criteria_2" value="средняя"></td><td><input type="radio" name="criteria_2" value="высокая"></td></tr>
-                <tr><td>3</td><td>Инновационность работы</td><td><input type="radio" name="criteria_3" value="нет" required></td><td><input type="radio" name="criteria_3" value="низкая"></td><td><input type="radio" name="criteria_3" value="средняя"></td><td><input type="radio" name="criteria_3" value="высокая"></td></tr>
-                <tr><td>4</td><td>Корректность употребления терминологии</td><td><input type="radio" name="criteria_4" value="нет" required></td><td><input type="radio" name="criteria_4" value="низкая"></td><td><input type="radio" name="criteria_4" value="средняя"></td><td><input type="radio" name="criteria_4" value="высокая"></td></tr>
-                <tr><td>5</td><td>Уровень проведенных исследований</td><td><input type="radio" name="criteria_5" value="нет" required></td><td><input type="radio" name="criteria_5" value="низкая"></td><td><input type="radio" name="criteria_5" value="средняя"></td><td><input type="radio" name="criteria_5" value="высокая"></td></tr>
-                <tr><td>6</td><td>Структурированность материала, логичность изложения</td><td><input type="radio" name="criteria_6" value="нет" required></td><td><input type="radio" name="criteria_6" value="низкая"></td><td><input type="radio" name="criteria_6" value="средняя"></td><td><input type="radio" name="criteria_6" value="высокая"></td></tr>
-                <tr><td>7</td><td>Перспективность с точки зрения применения работы на практике</td><td><input type="radio" name="criteria_7" value="нет" required></td><td><input type="radio" name="criteria_7" value="низкая"></td><td><input type="radio" name="criteria_7" value="средняя"></td><td><input type="radio" name="criteria_7" value="высокая"></td></tr>
-                <tr><td>8</td><td>Апробация работы (при наличии подтверждающих документов)</td><td><input type="radio" name="criteria_8" value="нет" required></td><td><input type="radio" name="criteria_8" value="низкая"></td><td><input type="radio" name="criteria_8" value="средняя"></td><td><input type="radio" name="criteria_8" value="высокая"></td></tr>
-                <tr><td>9</td><td>Экономическая и/или техническая целесообразность</td><td><input type="radio" name="criteria_9" value="нет" required></td><td><input type="radio" name="criteria_9" value="низкая"></td><td><input type="radio" name="criteria_9" value="средняя"></td><td><input type="radio" name="criteria_9" value="высокая"></td></tr>
-                <tr><td>10</td><td>Научно-технический уровень работы</td><td><input type="radio" name="criteria_10" value="нет" required></td><td><input type="radio" name="criteria_10" value="низкая"></td><td><input type="radio" name="criteria_10" value="средняя"></td><td><input type="radio" name="criteria_10" value="высокая"></td></tr>
-                <tr><td>11</td><td>Информативность аннотации</td><td><input type="radio" name="criteria_11" value="нет" required></td><td><input type="radio" name="criteria_11" value="низкая"></td><td><input type="radio" name="criteria_11" value="средняя"></td><td><input type="radio" name="criteria_11" value="высокая"></td></tr>
-              </tbody>
-            </table>
-          </div>
+          <div class="criteria-list" id="qualityCriteria"></div>
         </div>
 
-        <!-- 2. Слайдеры -->
+        <!-- 2. Куб: результативность / оперативность / ресурсоёмкость -->
         <div class="question-group">
-          <p class="question-label">2. Оценка по параметрам результативности, оперативности и ресурсоёмкости</p>
-          <div class="eval-item">
-            <span>Результативность <span class="help-icon" data-tooltip="1 – низкая, 2 – незначительная, 3 – ниже ожидаемой, 4 – ожидаемая, 5 – поразительная">?</span></span>
-            <div class="slider-container">
-              <input type="range" name="resultativity" min="1" max="5" step="1" value="3" class="slider" data-display="resDisplay">
-              <span class="slider-value" id="resDisplay">3</span>
+          <p class="question-label">2. Результативность, оперативность, ресурсоёмкость</p>
+          <p class="cube-intro">Передвиньте бегунки — куб ниже строится автоматически, отражая позицию работы по трём осям.</p>
+
+          <div class="criteria-list cube-sliders">
+            <div class="criterion-item">
+              <div class="criterion-top">
+                <span class="criterion-text">📈 Результативность</span>
+                <span class="criterion-current" data-current>3</span>
+              </div>
+              <div class="slider-row">
+                <input type="range" class="grad-slider cube-slider" min="1" max="5" step="1" value="3" name="resultativity" data-axis="x">
+                <div class="slider-ticks"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+              </div>
+            </div>
+            <div class="criterion-item">
+              <div class="criterion-top">
+                <span class="criterion-text">⚡ Оперативность</span>
+                <span class="criterion-current" data-current>3</span>
+              </div>
+              <div class="slider-row">
+                <input type="range" class="grad-slider cube-slider" min="1" max="5" step="1" value="3" name="operationality" data-axis="y">
+                <div class="slider-ticks"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+              </div>
+            </div>
+            <div class="criterion-item">
+              <div class="criterion-top">
+                <span class="criterion-text">🛠️ Ресурсоёмкость</span>
+                <span class="criterion-current" data-current>3</span>
+              </div>
+              <div class="slider-row">
+                <input type="range" class="grad-slider cube-slider" min="1" max="5" step="1" value="3" name="resource_intensity" data-axis="z">
+                <div class="slider-ticks"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+              </div>
             </div>
           </div>
-          <div class="eval-item">
-            <span>Оперативность <span class="help-icon" data-tooltip="1 – очевидно недостижима, 2 – скорее недостижима, 3 – скорее достижима, 4 – вероятно достижима, 5 – очевидно достижима">?</span></span>
-            <div class="slider-container">
-              <input type="range" name="operationality" min="1" max="5" step="1" value="3" class="slider" data-display="opDisplay">
-              <span class="slider-value" id="opDisplay">3</span>
+
+          <div class="cube-wrap">
+            <div class="cube-canvas-box">
+              <canvas id="assessCube" width="320" height="320"></canvas>
+              <div class="cube-controls">
+                <button type="button" id="cubeAutoRotateBtn" class="active">⟳ Авто-вращение</button>
+                <button type="button" id="cubeResetBtn">Сбросить вид</button>
+              </div>
+              <div class="cube-hint">Перетащите мышью/пальцем, чтобы повернуть куб</div>
             </div>
-          </div>
-          <div class="eval-item">
-            <span>Ресурсоёмкость <span class="help-icon" data-tooltip="1 – чрезвычайно высокая, 2 – высокая, 3 – вполне реальная, 4 – невысокая, 5 – низкая">?</span></span>
-            <div class="slider-container">
-              <input type="range" name="resource_intensity" min="1" max="5" step="1" value="3" class="slider" data-display="riDisplay">
-              <span class="slider-value" id="riDisplay">3</span>
-            </div>
+            <div class="cube-legend" id="cubeLiveLegend"></div>
           </div>
         </div>
 
@@ -150,6 +300,262 @@
   </main>
 
   <script>
+    // ===== Критерии для блока 1 =====
+    const qualityCriteria = [
+      { name: 'criteria_1', text: 'Актуальность работы' },
+      { name: 'criteria_2', text: 'Востребованность работы в Обществе' },
+      { name: 'criteria_3', text: 'Инновационность работы' },
+      { name: 'criteria_4', text: 'Корректность употребления терминологии' },
+      { name: 'criteria_5', text: 'Уровень проведенных исследований' },
+      { name: 'criteria_6', text: 'Структурированность материала, логичность изложения' },
+      { name: 'criteria_7', text: 'Перспективность с точки зрения применения работы на практике' },
+      { name: 'criteria_8', text: 'Апробация работы (при наличии подтверждающих документов)' },
+      { name: 'criteria_9', text: 'Экономическая и/или техническая целесообразность' },
+      { name: 'criteria_10', text: 'Научно-технический уровень работы' },
+      { name: 'criteria_11', text: 'Информативность аннотации' },
+    ];
+    const levels = ['нет', 'низкая', 'средняя', 'высокая'];
+    const levelsDisplay = ['Нет', 'Низкая', 'Средняя', 'Высокая'];
+
+    function buildCriteriaSliders(container, items) {
+      container.innerHTML = items.map((item, i) => `
+        <div class="criterion-item">
+          <div class="criterion-top">
+            <span class="criterion-num">${i + 1}</span>
+            <span class="criterion-text">${item.text}</span>
+            <span class="criterion-current" data-current>${levelsDisplay[0]}</span>
+          </div>
+          <div class="slider-row">
+            <input type="range" class="grad-slider" min="1" max="4" step="1" value="1"
+                   data-target="${item.name}"
+                   data-labels="${levels.join(',')}"
+                   data-display-labels="${levelsDisplay.join(',')}">
+            <div class="slider-ticks">
+              <span>Нет</span><span>Низкая</span><span>Средняя</span><span>Высокая</span>
+            </div>
+          </div>
+          <input type="hidden" name="${item.name}" value="${levels[0]}">
+        </div>
+      `).join('');
+    }
+
+    // ===== Красно-зелёный градиент для всех слайдеров-критериев =====
+    function setupGradSliders(root) {
+      root.querySelectorAll('.grad-slider').forEach(slider => {
+        const min = parseFloat(slider.min);
+        const max = parseFloat(slider.max);
+        const values = slider.dataset.labels ? slider.dataset.labels.split(',') : null;
+        const displayLabels = slider.dataset.displayLabels ? slider.dataset.displayLabels.split(',') : null;
+        const targetName = slider.dataset.target;
+        const hidden = targetName ? root.querySelector(`input[type="hidden"][name="${targetName}"]`) : null;
+        const item = slider.closest('.criterion-item');
+        const currentEl = item ? item.querySelector('[data-current]') : null;
+        const ticks = item ? item.querySelectorAll('.slider-ticks span') : null;
+
+        function update() {
+          const val = parseFloat(slider.value);
+          const idx = Math.round(val - min);
+          const percent = (val - min) / (max - min);
+          const hue = Math.round(percent * 120);
+          const color = `hsl(${hue}, 75%, 45%)`;
+
+          slider.style.background = `linear-gradient(to right, ${color} 0%, ${color} ${percent * 100}%, #e2e8f0 ${percent * 100}%, #e2e8f0 100%)`;
+          slider.style.setProperty('--thumb-color', color);
+
+          if (values && hidden) hidden.value = values[idx];
+          if (currentEl) {
+            currentEl.textContent = displayLabels ? displayLabels[idx] : String(val);
+            currentEl.style.background = color;
+            currentEl.style.color = '#fff';
+          }
+          if (ticks) ticks.forEach((t, i) => t.classList.toggle('active', i === idx));
+        }
+
+        slider.addEventListener('input', update);
+        update();
+      });
+    }
+
+    buildCriteriaSliders(document.getElementById('qualityCriteria'), qualityCriteria);
+    setupGradSliders(document);
+
+    // ===== Живой куб: результативность / оперативность / ресурсоёмкость =====
+    // (тот же движок отрисовки, что и в results.html, но с одной точкой,
+    //  которая двигается в реальном времени вслед за бегунками)
+    function renderCubeLegend(containerId, points, avgPoint) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      let html = '';
+      if (avgPoint) {
+        html += `
+          <div class="legend-item">
+            <span class="dot" style="background:#f1c40f; box-shadow:0 0 0 2px #b8960a;"></span>
+            <span><strong>Среднее</strong> — Р:${avgPoint.x.toFixed(1)}, О:${avgPoint.y.toFixed(1)}, Рес:${avgPoint.z.toFixed(1)}</span>
+          </div>`;
+      }
+      points.forEach(p => {
+        html += `
+          <div class="legend-item">
+            <span class="dot" style="background:${p.color};"></span>
+            <span>${p.label} — Р:${p.x}, О:${p.y}, Рес:${p.z}</span>
+          </div>`;
+      });
+      el.innerHTML = html;
+    }
+
+    function initCube(canvasId, points, avgPoint) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      const centerX = W / 2, centerY = H / 2 + 10;
+      const scale = 38; // пикселей на единицу шкалы
+
+      let yaw = -0.6, pitch = 0.35;
+      let autoRotate = true;
+      let dragging = false, lastX = 0, lastY = 0;
+
+      // Вершины куба по осям 1..5 (центр в 3)
+      const lo = 1 - 3, hi = 5 - 3;
+      const cubeVertices = [];
+      for (const x of [lo, hi]) for (const y of [lo, hi]) for (const z of [lo, hi]) cubeVertices.push([x, y, z]);
+      const edges = [];
+      for (let i = 0; i < cubeVertices.length; i++) {
+        for (let j = i + 1; j < cubeVertices.length; j++) {
+          let diff = 0;
+          for (let k = 0; k < 3; k++) if (cubeVertices[i][k] !== cubeVertices[j][k]) diff++;
+          if (diff === 1) edges.push([i, j]);
+        }
+      }
+
+      function project(x, y, z) {
+        let px = x - 3, py = y - 3, pz = z - 3;
+        let x1 = px * Math.cos(yaw) + pz * Math.sin(yaw);
+        let z1 = -px * Math.sin(yaw) + pz * Math.cos(yaw);
+        let y1 = py;
+        let y2 = y1 * Math.cos(pitch) - z1 * Math.sin(pitch);
+        let z2 = y1 * Math.sin(pitch) + z1 * Math.cos(pitch);
+        let x2 = x1;
+        const persp = 1 / (1 + z2 * 0.06);
+        return {
+          sx: centerX + x2 * scale * persp,
+          sy: centerY - y2 * scale * persp,
+          depth: z2
+        };
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        ctx.strokeStyle = '#c7d5e6';
+        ctx.lineWidth = 1.2;
+        edges.forEach(([i, j]) => {
+          const a = project(cubeVertices[i][0] + 3, cubeVertices[i][1] + 3, cubeVertices[i][2] + 3);
+          const b = project(cubeVertices[j][0] + 3, cubeVertices[j][1] + 3, cubeVertices[j][2] + 3);
+          ctx.beginPath();
+          ctx.moveTo(a.sx, a.sy);
+          ctx.lineTo(b.sx, b.sy);
+          ctx.stroke();
+        });
+
+        const axes = [
+          { from: [1, 1, 1], to: [5.6, 1, 1], label: 'Результативность', color: '#1e3a8a' },
+          { from: [1, 1, 1], to: [1, 5.6, 1], label: 'Оперативность', color: '#1e3a8a' },
+          { from: [1, 1, 1], to: [1, 1, 5.6], label: 'Ресурсоёмкость', color: '#1e3a8a' }
+        ];
+        ctx.font = '11px "Work Sans", sans-serif';
+        axes.forEach(ax => {
+          const a = project(...ax.from);
+          const b = project(...ax.to);
+          ctx.strokeStyle = ax.color;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(a.sx, a.sy);
+          ctx.lineTo(b.sx, b.sy);
+          ctx.stroke();
+          ctx.fillStyle = ax.color;
+          ctx.fillText(ax.label, b.sx + 4, b.sy);
+        });
+
+        const allPoints = points.slice();
+        if (avgPoint) allPoints.push({ ...avgPoint, isAvg: true });
+        const projected = allPoints.map(p => ({ ...p, proj: project(p.x, p.y, p.z) }));
+        projected.sort((a, b) => a.proj.depth - b.proj.depth);
+
+        projected.forEach(p => {
+          const r = p.isAvg ? 8 : 7;
+          ctx.beginPath();
+          ctx.arc(p.proj.sx, p.proj.sy, r, 0, Math.PI * 2);
+          ctx.fillStyle = p.isAvg ? '#f1c40f' : p.color;
+          ctx.fill();
+          ctx.lineWidth = p.isAvg ? 2 : 1;
+          ctx.strokeStyle = p.isAvg ? '#b8960a' : 'rgba(0,0,0,0.25)';
+          ctx.stroke();
+        });
+      }
+
+      function loop() {
+        if (autoRotate && !dragging) yaw += 0.006;
+        draw();
+        requestAnimationFrame(loop);
+      }
+      loop();
+
+      function pointerDown(x, y) { dragging = true; lastX = x; lastY = y; }
+      function pointerMove(x, y) {
+        if (!dragging) return;
+        yaw += (x - lastX) * 0.01;
+        pitch += (y - lastY) * 0.01;
+        pitch = Math.max(-1.4, Math.min(1.4, pitch));
+        lastX = x; lastY = y;
+      }
+      function pointerUp() { dragging = false; }
+
+      canvas.addEventListener('mousedown', e => pointerDown(e.clientX, e.clientY));
+      window.addEventListener('mousemove', e => pointerMove(e.clientX, e.clientY));
+      window.addEventListener('mouseup', pointerUp);
+      canvas.addEventListener('touchstart', e => {
+        const t = e.touches[0]; pointerDown(t.clientX, t.clientY);
+      }, { passive: true });
+      canvas.addEventListener('touchmove', e => {
+        const t = e.touches[0]; pointerMove(t.clientX, t.clientY);
+      }, { passive: true });
+      canvas.addEventListener('touchend', pointerUp);
+
+      const autoBtn = document.getElementById('cubeAutoRotateBtn');
+      if (autoBtn) {
+        autoBtn.addEventListener('click', () => {
+          autoRotate = !autoRotate;
+          autoBtn.classList.toggle('active', autoRotate);
+        });
+      }
+      const resetBtn = document.getElementById('cubeResetBtn');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => { yaw = -0.6; pitch = 0.35; });
+      }
+    }
+
+    // Точка куба, отражающая текущие значения трёх бегунков
+    const livePoint = { x: 3, y: 3, z: 3, color: '#2563eb', label: 'Текущая оценка' };
+    const axisFromInput = { x: 'x', y: 'y', z: 'z' };
+
+    function updateCubeLegend() {
+      renderCubeLegend('cubeLiveLegend', [livePoint], null);
+    }
+
+    document.querySelectorAll('.cube-slider').forEach(slider => {
+      slider.addEventListener('input', () => {
+        const axis = slider.dataset.axis;
+        if (axis && axisFromInput[axis]) {
+          livePoint[axis] = parseFloat(slider.value);
+          updateCubeLegend();
+        }
+      });
+    });
+
+    initCube('assessCube', [livePoint], null);
+    updateCubeLegend();
+
     (function() {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -185,16 +591,7 @@
       }
       document.getElementById('work_id').value = workId;
 
-      // ----- Слайдеры -----
-      document.querySelectorAll('.slider').forEach(slider => {
-        const display = document.getElementById(slider.dataset.display);
-        slider.addEventListener('input', () => {
-          display.textContent = slider.value;
-        });
-      });
-
       // ----- Проверки -----
-      // Показываем форму, но блокируем кнопку до окончания проверок
       submitBtn.disabled = true;
       submitBtn.textContent = 'Проверка...';
 
@@ -268,7 +665,6 @@
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        // Дополнительная проверка, если кнопка всё ещё заблокирована
         if (submitBtn.disabled) {
           alert('Форма недоступна. Проверьте сообщение выше.');
           return;
@@ -288,15 +684,15 @@
           });
           const result = await response.json();
           if (response.ok) {
-            messageDiv.innerHTML = '<span style="color:green; font-weight:600;">✅ Оценка успешно сохранена! Перенаправление...</span>';
+            messageDiv.innerHTML = '<span style="color:#16a34a; font-weight:600;">✅ Оценка успешно сохранена! Перенаправление...</span>';
             setTimeout(() => {
               window.location.href = `results.html?workId=${workId}`;
             }, 1500);
           } else {
-            messageDiv.innerHTML = `<span style="color:red;">❌ ${result.error || 'Ошибка сохранения'}</span>`;
+            messageDiv.innerHTML = `<span style="color:#dc2626;">❌ ${result.error || 'Ошибка сохранения'}</span>`;
           }
         } catch (err) {
-          messageDiv.innerHTML = '<span style="color:red;">❌ Ошибка соединения с сервером</span>';
+          messageDiv.innerHTML = '<span style="color:#dc2626;">❌ Ошибка соединения с сервером</span>';
           console.error(err);
         }
       });

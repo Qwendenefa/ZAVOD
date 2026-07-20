@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Мои назначенные работы — Экспертум</title>
   <link rel="stylesheet" href="index.css">
+  <!-- Подключаем FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    /* стили остаются те же, что и раньше */
+    /* Стили для карточек и контейнера */
     body { font-family: 'Work Sans', sans-serif; background: #f8fafc; margin: 0; padding: 0; }
     .expert-container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
     .page-title { font-size: 26px; font-weight: 600; color: #035680; margin-bottom: 25px; border-bottom: 2px solid #007cba; padding-bottom: 10px; }
@@ -30,13 +32,121 @@
     .empty-msg { text-align: center; color: #8a9aa8; padding: 40px 0; font-size: 16px; }
     .error-msg { color: #d32f2f; text-align: center; padding: 20px; }
     @media (max-width: 700px) { .work-card { flex-direction: column; align-items: stretch; } .work-actions { margin-top: 14px; justify-content: flex-start; } }
+
+    /* Стили для кнопки смены роли (как в шапке) */
+    .role-toggle-btn {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 20px;
+      padding: 6px 16px;
+      cursor: pointer;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 0.2s;
+      background: transparent;
+      color: white;
+      font-weight: 500;
+    }
+    .role-toggle-btn:hover {
+      border-color: white;
+    }
+
+    /* Шторка смены роли */
+    .role-drawer {
+      position: fixed;
+      top: 0;
+      right: -320px;
+      width: 300px;
+      height: 100%;
+      background: white;
+      box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+      transition: right 0.3s ease;
+      z-index: 1000;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .role-drawer.open { right: 0; }
+    .role-drawer.hidden { display: none; }
+    .drawer-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.3);
+      z-index: 999;
+    }
+    .drawer-overlay.hidden { display: none; }
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    .drawer-header h4 { margin: 0; font-size: 18px; }
+    #closeDrawerBtn {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #999;
+      line-height: 1;
+    }
+    #closeDrawerBtn:hover { color: #333; }
+    .role-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .role-option {
+      padding: 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      text-align: left;
+      font-size: 15px;
+      transition: all 0.2s;
+    }
+    .role-option:hover {
+      background: #f0f4ff;
+      border-color: #4a6cf7;
+    }
+    .role-option.active {
+      background: #4a6cf7;
+      color: white;
+      border-color: #4a6cf7;
+    }
   </style>
 </head>
 <body>
   <header>
     <div class="navigation">
-      <h1 class="logo"><a href="index.html">Экспертум</a></h1>
-      <nav><ul id="navMenu"></ul></nav>
+      <h1 class="logo">
+        <a href="index.html">Экспертум</a>
+        <svg style="fill:#007cba" width="40px" height="40px" fill="#ffffff" viewBox="-3.2 -3.2 38.40 38.40" version="1.1" xmlns="http://www.w3.org/2000/svg" transform="matrix(1, 0, 0, 1, 0, 0)rotate(0)">
+          <g id="SVGRepo_bgCarrier" stroke-width="0">
+            <path transform="translate(-3.2, -3.2), scale(2.4)" fill="#ffffff" d="M9.166.33a2.25 2.25 0 00-2.332 0l-5.25 3.182A2.25 2.25 0 00.5 5.436v5.128a2.25 2.25 0 001.084 1.924l5.25 3.182a2.25 2.25 0 002.332 0l5.25-3.182a2.25 2.25 0 001.084-1.924V5.436a2.25 2.25 0 00-1.084-1.924L9.166.33z" strokewidth="0"/>
+          </g>
+          <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/>
+          <g id="SVGRepo_iconCarrier">
+            <title>alt-book</title>
+            <path d="M0 26.016q0 0.832 0.576 1.408t1.44 0.576q1.92 0.096 3.808 0.288t4.352 0.736 3.904 1.28q0.096 0.736 0.64 1.216t1.28 0.48 1.28-0.48 0.672-1.216q1.44-0.736 3.872-1.28t4.352-0.736 3.84-0.288q0.8 0 1.408-0.576t0.576-1.408v-24q0-0.832-0.576-1.408t-1.408-0.608q-0.032 0-0.096 0.032t-0.128 0q-9.504 0.256-12.672 2.528-1.024 0.768-1.12 1.44l-0.096-0.32q-0.576-1.28-3.168-2.176-3.648-1.28-10.528-1.472-0.064 0-0.128 0t-0.064-0.032q-0.832 0-1.44 0.608t-0.576 1.408v24zM4 24.128v-19.936q6.88 0.512 10.016 2.080v19.744q-3.104-1.536-10.016-1.888zM6.016 20q0.096 0 0.32 0.032t0.832 0.032 1.216 0.096 1.248 0.224 1.184 0.352 0.832 0.544 0.352 0.736v-4q0-0.096-0.032-0.224t-0.352-0.48-0.896-0.608-1.792-0.48-2.912-0.224v4zM6.016 12q0.096 0 0.32 0.032t0.832 0.032 1.216 0.096 1.248 0.224 1.184 0.352 0.832 0.544 0.352 0.736v-4q0-0.096-0.032-0.224t-0.352-0.48-0.896-0.608-1.792-0.48-2.912-0.224v4zM18.016 26.016v-19.744q3.104-1.568 9.984-2.080v19.936q-6.912 0.352-9.984 1.888zM20 22.016q0-0.576 0.608-0.992t1.504-0.576 1.76-0.288 1.504-0.128l0.64-0.032v-4q-1.696 0-2.944 0.224t-1.792 0.48-0.864 0.608-0.384 0.512l-0.032 0.192v4zM20 14.016q0-0.576 0.608-0.992t1.504-0.576 1.76-0.288 1.504-0.128l0.64-0.032v-4q-1.696 0-2.944 0.224t-1.792 0.48-0.864 0.608-0.384 0.512l-0.032 0.192v4z"/>
+          </g>
+        </svg>
+      </h1>
+      <nav>
+        <ul>
+          <li><a href="dashboard.html"><i class="fas fa-user"></i> Личный кабинет</a></li>
+          <li><button id="roleToggleBtn" class="role-toggle-btn"><span id="currentRoleDisplay">Автор</span> ▼</button></li>
+          <li><a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Выйти</a></li>
+        </ul>
+      </nav>
     </div>
   </header>
   <main>
@@ -45,24 +155,120 @@
       <div id="worksList"><div class="empty-msg">Загрузка...</div></div>
     </div>
   </main>
-  <footer><div><h3>Контакты:</h3><p>email@example.com</p></div></footer>
+
+  <!-- Шторка смены роли -->
+  <div id="drawerOverlay" class="drawer-overlay hidden"></div>
+  <div id="roleDrawer" class="role-drawer hidden">
+    <div class="drawer-header">
+      <h4>Смена роли</h4>
+      <button id="closeDrawerBtn">&times;</button>
+    </div>
+    <div class="drawer-body">
+      <p>Текущая роль: <strong id="drawerCurrentRole">Эксперт</strong></p>
+      <div class="role-options">
+        <button class="role-option" data-role="author">📝 Автор</button>
+        <button class="role-option" data-role="expert">🔍 Эксперт</button>
+        <button class="role-option" data-role="admin">⚙️ Администратор</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div><h3>Контакты:</h3><p>email@example.com</p></div>
+    <div><h3>Адрес:</h3><p>г. Москва, ул. Примерная, д. 1</p></div>
+  </footer>
+
   <script>
     (function() {
       const token = localStorage.getItem('token');
-      if (!token) { window.location.href = 'login.html'; return; }
+      if (!token) {
+        window.location.href = 'login.html';
+        return;
+      }
 
-      // ========== ИЗМЕНЕННАЯ НАВИГАЦИЯ ==========
-      document.getElementById('navMenu').innerHTML = `
-        <li><a href="dashboard.html">Личный кабинет</a></li>
-        <li><a href="#" id="logoutLink">Выйти</a></li>
-      `;
-      document.getElementById('logoutLink')?.addEventListener('click', (e) => {
+      // === ВЫХОД ===
+      document.getElementById('logoutLink').addEventListener('click', (e) => {
         e.preventDefault();
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = 'index.html';
       });
 
+      // === ШТОРКА СМЕНЫ РОЛИ ===
+      const roleToggleBtn = document.getElementById('roleToggleBtn');
+      const roleDrawer = document.getElementById('roleDrawer');
+      const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+      const drawerOverlay = document.getElementById('drawerOverlay');
+
+      function openDrawer() {
+        roleDrawer.classList.remove('hidden');
+        roleDrawer.classList.add('open');
+        drawerOverlay.classList.remove('hidden');
+      }
+      function closeDrawer() {
+        roleDrawer.classList.remove('open');
+        roleDrawer.classList.add('hidden');
+        drawerOverlay.classList.add('hidden');
+      }
+
+      roleToggleBtn.addEventListener('click', openDrawer);
+      closeDrawerBtn.addEventListener('click', closeDrawer);
+      drawerOverlay.addEventListener('click', closeDrawer);
+
+      // === ОБНОВЛЕНИЕ ОТОБРАЖЕНИЯ РОЛИ ===
+      const currentRoleDisplay = document.getElementById('currentRoleDisplay');
+      const drawerCurrentRole = document.getElementById('drawerCurrentRole');
+
+      function updateRoleUI(user) {
+        const roleMap = { 'author': 'Автор', 'expert': 'Эксперт', 'admin': 'Администратор' };
+        const displayName = roleMap[user.role] || user.role;
+        currentRoleDisplay.textContent = displayName;
+        drawerCurrentRole.textContent = displayName;
+        document.querySelectorAll('.role-option').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.role === user.role);
+        });
+      }
+
+      // Загружаем текущего пользователя для отображения роли
+      fetch('/me', { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => res.ok ? res.json() : Promise.reject())
+        .then(user => {
+          updateRoleUI(user);
+        })
+        .catch(() => {});
+
+      // === ОБРАБОТЧИК ВЫБОРА РОЛИ ===
+      document.querySelectorAll('.role-option').forEach(btn => {
+        btn.addEventListener('click', async function() {
+          const newRole = this.dataset.role;
+          try {
+            const response = await fetch('/auth/role', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ role: newRole })
+            });
+            if (!response.ok) {
+              const err = await response.json();
+              alert('Ошибка: ' + (err.error || 'Не удалось сменить роль'));
+              return;
+            }
+            const data = await response.json();
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            updateRoleUI(data.user);
+            closeDrawer();
+            // Перезагружаем список работ (чтобы обновить права)
+            loadWorks();
+          } catch (err) {
+            alert('Ошибка соединения: ' + err.message);
+          }
+        });
+      });
+
+      // === ОСНОВНАЯ ЛОГИКА ЗАГРУЗКИ РАБОТ ===
       function getTypeName(type) {
         return type === 'article' ? 'Научная статья' :
                type === 'competition' ? 'Конкурсная работа' : type;
@@ -135,7 +341,6 @@
         works.forEach(work => {
           const typeDisplay = getTypeName(work.type);
           const dateFormatted = formatDate(work.created_at);
-          // Используем уже существующее поле from сервера
           const isEvaluated = work.already_evaluated === 1;
 
           let actionBtn = '';
